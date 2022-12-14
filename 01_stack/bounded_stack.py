@@ -22,6 +22,8 @@ class BoundedStack:
         self.clear()
         self.__max_size = max_size
 
+    # предусловие: размер стека меньше максимального
+    # постусловие: в стек добавлено новое значение
     def push(self, value: Any) -> None:
         if self.size() == self.__max_size:
             self.__push_status = self.PUSH_ERR
@@ -29,6 +31,8 @@ class BoundedStack:
         self.__stack.append(value)
         self.__push_status = self.PUSH_OK
 
+    # предусловие: стек не пуст
+    # постусловие: из стека удалён верхний элемент
     def pop(self) -> None:
         if self.size() == 0:
             self.__pop_status = self.POP_ERR
@@ -36,12 +40,14 @@ class BoundedStack:
         self.__stack.pop()
         self.__pop_status = self.POP_OK
 
+    # постусловие: стек пуст
     def clear(self) -> None:
         self.__stack = []
         self.__push_status = self.PUSH_NIL
         self.__pop_status = self.POP_NIL
         self.__peek_status = self.PEEK_NIL
     
+    # предусловие: стек не пуст
     def peek(self) -> Any:
         if self.size() == 0:
             self.__peek_status = self.PEEK_ERR
