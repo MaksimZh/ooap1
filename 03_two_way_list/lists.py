@@ -1,17 +1,50 @@
 from enum import Enum
 from abc import ABC
-from typing import Any
+from typing import Any, Optional
 
 
 class ParentList(ABC):
+    
+    class Node:
+        next: Optional["ParentList.Node"]
+        prev: Optional["ParentList.Node"]
+
+        def __init__(self) -> None:
+            self.next = None
+            self.prev = None
+
+        def join_right(self, node: "ParentList.Node") -> None:
+            self.next = node
+            node.prev = self
+
+
+    class ValueNode(Node):
+        value: Any
+
+        def __init__(self, value: Any) -> None:
+            super().__init__()
+            self.value = value
+
+
+    __pre_head: Node
+    __post_tail: Node
+    _cursor: Optional[ValueNode]
+    __size: int
 
     def __init__(self) -> None:
         super().__init__()
+        self.__pre_head = self.Node()
+        self.__post_tail = self.Node()
         self.clear()
 
 
     def head(self) -> None:
-        self.__head_status = self.HeadStatus.EMPTY
+        if self.size() == 0:
+            self.__head_status = self.HeadStatus.EMPTY
+            return
+        assert(isinstance(self.__pre_head.next, self.ValueNode))
+        self._cursor = self.__pre_head.next
+        self.__head_status = self.HeadStatus.OK
 
     class HeadStatus(Enum):
         NIL = 0,
@@ -25,7 +58,12 @@ class ParentList(ABC):
 
 
     def tail(self) -> None:
-        self.__tail_status = self.TailStatus.EMPTY
+        if self.size() == 0:
+            self.__tail_status = self.TailStatus.EMPTY
+            return
+        assert(isinstance(self.__post_tail.prev, self.ValueNode))
+        self._cursor = self.__post_tail.prev
+        self.__tail_status = self.TailStatus.OK
 
     class TailStatus(Enum):
         NIL = 0,
@@ -39,7 +77,15 @@ class ParentList(ABC):
 
 
     def right(self) -> None:
-        self.__right_status = self.RightStatus.NO_RIGHT_NEIGHBOR
+        if self._cursor is None:
+            self.__right_status = self.RightStatus.NO_RIGHT_NEIGHBOR
+            return
+        assert(self._cursor.next is not None)
+        if not isinstance(self._cursor.next, self.ValueNode):
+            self.__right_status = self.RightStatus.NO_RIGHT_NEIGHBOR
+            return
+        self._cursor = self._cursor.next
+        self.__right_status = self.RightStatus.OK
 
     class RightStatus(Enum):
         NIL = 0,
@@ -53,7 +99,15 @@ class ParentList(ABC):
 
 
     def put_right(self, value: Any) -> None:
-        self.__put_right_status = self.PutRightStatus.EMPTY
+        if self.size() == 0:
+            self.__put_right_status = self.PutRightStatus.EMPTY
+            return
+        node = self.ValueNode(value)
+        assert(self._cursor is not None)
+        assert(self._cursor.next is not None)
+        node.join_right(self._cursor.next)
+        self._cursor.join_right(node)
+        self.__put_right_status = self.PutRightStatus.OK
 
     class PutRightStatus(Enum):
         NIL = 0,
@@ -81,7 +135,22 @@ class ParentList(ABC):
 
 
     def remove(self) -> None:
-        self.__remove_status = self.RemoveStatus.EMPTY
+        if self.size() == 0:
+            self.__remove_status = self.RemoveStatus.EMPTY
+            return
+        self.__size -= 1
+        self.__remove_status = self.RemoveStatus.OK
+        assert(self._cursor is not None)
+        assert(self._cursor.prev is not None)
+        assert(self._cursor.next is not None)
+        self._cursor.prev.join_right(self._cursor.next)
+        if isinstance(self._cursor.next, self.ValueNode):
+            self._cursor = self._cursor.next
+        elif isinstance(self._cursor.prev, self.ValueNode):
+            self._cursor = self._cursor.prev
+        else:
+            self._cursor = None
+
 
     class RemoveStatus(Enum):
         NIL = 0,
@@ -95,7 +164,12 @@ class ParentList(ABC):
 
 
     def replace(self, value: Any) -> None:
-        self.__replace_status = self.ReplaceStatus.EMPTY
+        if self.size() == 0:
+            self.__replace_status = self.ReplaceStatus.EMPTY
+            return
+        assert(self._cursor is not None)
+        self._cursor.value = value
+        self.__replace_status = self.ReplaceStatus.OK
 
     class ReplaceStatus(Enum):
         NIL = 0,
@@ -109,7 +183,16 @@ class ParentList(ABC):
 
 
     def find(self, value: Any) -> None:
-        self.__find_status = self.FindStatus.NOT_FOUND
+        if self._cursor is None:
+            self.__find_status = self.FindStatus.NOT_FOUND
+            return
+        node = self._cursor
+        while isinstance(node, self.ValueNode):
+            if node.value == value:
+                self._cursor = node
+                self.__find_status = self.FindStatus.OK
+                return
+            node = node.next
 
     class FindStatus(Enum):
         NIL = 0,
@@ -123,7 +206,11 @@ class ParentList(ABC):
 
 
     def get(self) -> Any:
-        self.__get_status = self.GetStatus.EMPTY
+        if self._cursor is None:
+            self.__get_status = self.GetStatus.EMPTY
+            return None
+        self.__get_status = self.GetStatus.OK
+        return self._cursor.value
 
     class GetStatus(Enum):
         NIL = 0,
@@ -137,6 +224,9 @@ class ParentList(ABC):
 
 
     def clear(self) -> None:
+        self.__pre_head.join_right(self.__post_tail)
+        self._cursor = None
+        self.__size = 0
         self.__head_status = self.HeadStatus.NIL
         self.__tail_status = self.TailStatus.NIL
         self.__right_status = self.RightStatus.NIL
@@ -148,21 +238,32 @@ class ParentList(ABC):
         self.__get_status = self.GetStatus.NIL
 
 
+    def add_tail(self, value: Any) -> None:
+        node = self.ValueNode(value)
+        assert(self.__post_tail.prev is not None)
+        self.__post_tail.prev.join_right(node)
+        node.join_right(self.__post_tail)
+        self.__size += 1
+        if self._cursor is None:
+            self._cursor = node
+
+
     def is_head(self) -> bool:
-        return False
+        return (self._cursor is not None) and (self._cursor.prev == self.__pre_head)
 
     def is_tail(self) -> bool:
-        return False
+        return (self._cursor is not None) and (self._cursor.next == self.__post_tail)
 
     def is_value(self) -> bool:
-        return False
+        return isinstance(self._cursor, self.ValueNode)
 
     def size(self) -> int:
-        return 0
+        return self.__size
 
 
 class LinkedList(ParentList):
     pass
+
 
 class TwoWayList(ParentList):
 
@@ -172,8 +273,16 @@ class TwoWayList(ParentList):
 
 
     def left(self) -> None:
-        self.__left_status = self.LeftStatus.NO_LEFT_NEIGHBOR
-
+        if self._cursor is None:
+            self.__left_status = self.LeftStatus.NO_LEFT_NEIGHBOR
+            return
+        assert(self._cursor.prev is not None)
+        if not isinstance(self._cursor.prev, self.ValueNode):
+            self.__left_status = self.LeftStatus.NO_LEFT_NEIGHBOR
+            return
+        self._cursor = self._cursor.prev
+        self.__left_status = self.LeftStatus.OK
+    
     class LeftStatus(Enum):
         NIL = 0,
         OK = 1,
