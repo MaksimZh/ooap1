@@ -5,20 +5,20 @@ from typing import Any, Optional
 
 class ParentList(ABC):
     
-    class Node:
-        next: Optional["ParentList.Node"]
-        prev: Optional["ParentList.Node"]
+    class _Node:
+        next: Optional["ParentList._Node"]
+        prev: Optional["ParentList._Node"]
 
         def __init__(self) -> None:
             self.next = None
             self.prev = None
 
-        def join_right(self, node: "ParentList.Node") -> None:
+        def join_right(self, node: "ParentList._Node") -> None:
             self.next = node
             node.prev = self
 
 
-    class ValueNode(Node):
+    class _ValueNode(_Node):
         value: Any
 
         def __init__(self, value: Any) -> None:
@@ -26,15 +26,15 @@ class ParentList(ABC):
             self.value = value
 
 
-    __pre_head: Node
-    __post_tail: Node
-    _cursor: Optional[ValueNode]
+    __pre_head: _Node
+    __post_tail: _Node
+    _cursor: Optional[_ValueNode]
     __size: int
 
     def __init__(self) -> None:
         super().__init__()
-        self.__pre_head = self.Node()
-        self.__post_tail = self.Node()
+        self.__pre_head = self._Node()
+        self.__post_tail = self._Node()
         self.clear()
 
 
@@ -42,7 +42,7 @@ class ParentList(ABC):
         if self.size() == 0:
             self.__head_status = self.HeadStatus.EMPTY
             return
-        assert(isinstance(self.__pre_head.next, self.ValueNode))
+        assert(isinstance(self.__pre_head.next, self._ValueNode))
         self._cursor = self.__pre_head.next
         self.__head_status = self.HeadStatus.OK
 
@@ -61,7 +61,7 @@ class ParentList(ABC):
         if self.size() == 0:
             self.__tail_status = self.TailStatus.EMPTY
             return
-        assert(isinstance(self.__post_tail.prev, self.ValueNode))
+        assert(isinstance(self.__post_tail.prev, self._ValueNode))
         self._cursor = self.__post_tail.prev
         self.__tail_status = self.TailStatus.OK
 
@@ -81,7 +81,7 @@ class ParentList(ABC):
             self.__right_status = self.RightStatus.NO_RIGHT_NEIGHBOR
             return
         assert(self._cursor.next is not None)
-        if not isinstance(self._cursor.next, self.ValueNode):
+        if not isinstance(self._cursor.next, self._ValueNode):
             self.__right_status = self.RightStatus.NO_RIGHT_NEIGHBOR
             return
         self._cursor = self._cursor.next
@@ -102,11 +102,12 @@ class ParentList(ABC):
         if self.size() == 0:
             self.__put_right_status = self.PutRightStatus.EMPTY
             return
-        node = self.ValueNode(value)
+        node = self._ValueNode(value)
         assert(self._cursor is not None)
         assert(self._cursor.next is not None)
         node.join_right(self._cursor.next)
         self._cursor.join_right(node)
+        self.__size += 1
         self.__put_right_status = self.PutRightStatus.OK
 
     class PutRightStatus(Enum):
@@ -121,7 +122,16 @@ class ParentList(ABC):
 
 
     def put_left(self, value: Any) -> None:
-        self.__put_left_status = self.PutLeftStatus.EMPTY
+        if self.size() == 0:
+            self.__put_left_status = self.PutLeftStatus.EMPTY
+            return
+        node = self._ValueNode(value)
+        assert(self._cursor is not None)
+        assert(self._cursor.prev is not None)
+        self._cursor.prev.join_right(node)
+        node.join_right(self._cursor)
+        self.__size += 1
+        self.__put_left_status = self.PutLeftStatus.OK
 
     class PutLeftStatus(Enum):
         NIL = 0,
@@ -138,18 +148,18 @@ class ParentList(ABC):
         if self.size() == 0:
             self.__remove_status = self.RemoveStatus.EMPTY
             return
-        self.__size -= 1
-        self.__remove_status = self.RemoveStatus.OK
         assert(self._cursor is not None)
         assert(self._cursor.prev is not None)
         assert(self._cursor.next is not None)
         self._cursor.prev.join_right(self._cursor.next)
-        if isinstance(self._cursor.next, self.ValueNode):
+        if isinstance(self._cursor.next, self._ValueNode):
             self._cursor = self._cursor.next
-        elif isinstance(self._cursor.prev, self.ValueNode):
+        elif isinstance(self._cursor.prev, self._ValueNode):
             self._cursor = self._cursor.prev
         else:
             self._cursor = None
+        self.__size -= 1
+        self.__remove_status = self.RemoveStatus.OK
 
 
     class RemoveStatus(Enum):
@@ -183,16 +193,17 @@ class ParentList(ABC):
 
 
     def find(self, value: Any) -> None:
-        if self._cursor is None:
+        if self.size() == 0:
             self.__find_status = self.FindStatus.NOT_FOUND
             return
         node = self._cursor
-        while isinstance(node, self.ValueNode):
+        while isinstance(node, self._ValueNode):
             if node.value == value:
                 self._cursor = node
                 self.__find_status = self.FindStatus.OK
                 return
             node = node.next
+        self.__find_status = self.FindStatus.NOT_FOUND
 
     class FindStatus(Enum):
         NIL = 0,
@@ -239,13 +250,23 @@ class ParentList(ABC):
 
 
     def add_tail(self, value: Any) -> None:
-        node = self.ValueNode(value)
+        node = self._ValueNode(value)
         assert(self.__post_tail.prev is not None)
         self.__post_tail.prev.join_right(node)
         node.join_right(self.__post_tail)
         self.__size += 1
         if self._cursor is None:
             self._cursor = node
+
+    def remove_all(self, value: Any) -> None:
+        if self.size() == 0:
+            return
+        self.head()
+        self.find(value)
+        while self.get_find_status() == self.FindStatus.OK:
+            self.remove()
+            assert(self.get_remove_status() == self.RemoveStatus.OK)
+            self.find(value)
 
 
     def is_head(self) -> bool:
@@ -255,7 +276,7 @@ class ParentList(ABC):
         return (self._cursor is not None) and (self._cursor.next == self.__post_tail)
 
     def is_value(self) -> bool:
-        return isinstance(self._cursor, self.ValueNode)
+        return isinstance(self._cursor, self._ValueNode)
 
     def size(self) -> int:
         return self.__size
@@ -277,7 +298,7 @@ class TwoWayList(ParentList):
             self.__left_status = self.LeftStatus.NO_LEFT_NEIGHBOR
             return
         assert(self._cursor.prev is not None)
-        if not isinstance(self._cursor.prev, self.ValueNode):
+        if not isinstance(self._cursor.prev, self._ValueNode):
             self.__left_status = self.LeftStatus.NO_LEFT_NEIGHBOR
             return
         self._cursor = self._cursor.prev
