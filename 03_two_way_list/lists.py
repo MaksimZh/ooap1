@@ -31,6 +31,8 @@ class ParentList(ABC):
     _cursor: Optional[_ValueNode]
     __size: int
 
+    # конструктор:
+    # постусловие: создан новый пустой список
     def __init__(self) -> None:
         super().__init__()
         self.__pre_head = self._Node()
@@ -38,6 +40,10 @@ class ParentList(ABC):
         self.clear()
 
 
+    # Команды и запросы статусов:
+
+    # предусловие: список не пуст
+    # постусловие: курсор установлен на первый узел в списке
     def head(self) -> None:
         if self.size() == 0:
             self.__head_status = self.HeadStatus.EMPTY
@@ -56,7 +62,8 @@ class ParentList(ABC):
     def get_head_status(self) -> HeadStatus:
         return self.__head_status
 
-
+    # предусловие: список не пуст
+    # постусловие: курсор установлен на последний узел в списке
     def tail(self) -> None:
         if self.size() == 0:
             self.__tail_status = self.TailStatus.EMPTY
@@ -76,6 +83,9 @@ class ParentList(ABC):
         return self.__tail_status
 
 
+    # предусловие: список не пуст
+    # предусловие: правее курсора есть элемент
+    # постусловие: курсор сдвинут на один узел вправо
     def right(self) -> None:
         if self._cursor is None:
             self.__right_status = self.RightStatus.NO_RIGHT_NEIGHBOR
@@ -97,7 +107,8 @@ class ParentList(ABC):
     def get_right_status(self) -> RightStatus:
         return self.__right_status
 
-
+    # предусловие: список не пуст
+    # постусловие: справа от текущего узла добавлен новый узел с заданным значением
     def put_right(self, value: Any) -> None:
         if self.size() == 0:
             self.__put_right_status = self.PutRightStatus.EMPTY
@@ -121,6 +132,8 @@ class ParentList(ABC):
         return self.__put_right_status
 
 
+    # предусловие: список не пуст
+    # постусловие: слева от текущего узла добавлен новый узел с заданным значением
     def put_left(self, value: Any) -> None:
         if self.size() == 0:
             self.__put_left_status = self.PutLeftStatus.EMPTY
@@ -143,7 +156,10 @@ class ParentList(ABC):
     def get_put_left_status(self) -> PutLeftStatus:
         return self.__put_left_status
 
-
+    # предусловие: список не пуст
+    # постусловие: текущий узел удалён
+    #              если есть правый сосед - курсор смещён к нему
+    #              иначе если есть левый сосед - курсор смещён к нему
     def remove(self) -> None:
         if self.size() == 0:
             self.__remove_status = self.RemoveStatus.EMPTY
@@ -172,7 +188,8 @@ class ParentList(ABC):
     def get_remove_status(self) -> RemoveStatus:
         return self.__remove_status
 
-
+    # предусловие: список не пуст
+    # постусловие: значение текущего узла заменено на заданное
     def replace(self, value: Any) -> None:
         if self.size() == 0:
             self.__replace_status = self.ReplaceStatus.EMPTY
@@ -192,6 +209,8 @@ class ParentList(ABC):
         return self.__replace_status
 
 
+    # постусловие: курсор установлен на следующий узел с заданным значением
+    #              если такой узел найден
     def find(self, value: Any) -> None:
         if self.size() == 0:
             self.__find_status = self.FindStatus.NOT_FOUND
@@ -216,6 +235,46 @@ class ParentList(ABC):
         return self.__find_status
 
 
+    # постусловие: из списка удалены все элементы
+    def clear(self) -> None:
+        self.__pre_head.join_right(self.__post_tail)
+        self._cursor = None
+        self.__size = 0
+        self.__head_status = self.HeadStatus.NIL
+        self.__tail_status = self.TailStatus.NIL
+        self.__right_status = self.RightStatus.NIL
+        self.__put_right_status = self.PutRightStatus.NIL
+        self.__put_left_status = self.PutLeftStatus.NIL
+        self.__remove_status = self.RemoveStatus.NIL
+        self.__replace_status = self.ReplaceStatus.NIL
+        self.__find_status = self.FindStatus.NIL
+        self.__get_status = self.GetStatus.NIL
+
+
+    # постусловие: в конец списка добавлен элемент с заданным значением
+    def add_tail(self, value: Any) -> None:
+        node = self._ValueNode(value)
+        assert(self.__post_tail.prev is not None)
+        self.__post_tail.prev.join_right(node)
+        node.join_right(self.__post_tail)
+        self.__size += 1
+        if self._cursor is None:
+            self._cursor = node
+
+    # постусловие: в списке удалены все элементы с заданным значением
+    def remove_all(self, value: Any) -> None:
+        if self.size() == 0:
+            return
+        self.head()
+        self.find(value)
+        while self.get_find_status() == self.FindStatus.OK:
+            self.remove()
+            assert(self.get_remove_status() == self.RemoveStatus.OK)
+            self.find(value)
+
+    # Запросы:
+    
+    # предусловие: список не пуст
     def get(self) -> Any:
         if self._cursor is None:
             self.__get_status = self.GetStatus.EMPTY
@@ -232,41 +291,6 @@ class ParentList(ABC):
 
     def get_get_status(self) -> GetStatus:
         return self.__get_status
-
-
-    def clear(self) -> None:
-        self.__pre_head.join_right(self.__post_tail)
-        self._cursor = None
-        self.__size = 0
-        self.__head_status = self.HeadStatus.NIL
-        self.__tail_status = self.TailStatus.NIL
-        self.__right_status = self.RightStatus.NIL
-        self.__put_right_status = self.PutRightStatus.NIL
-        self.__put_left_status = self.PutLeftStatus.NIL
-        self.__remove_status = self.RemoveStatus.NIL
-        self.__replace_status = self.ReplaceStatus.NIL
-        self.__find_status = self.FindStatus.NIL
-        self.__get_status = self.GetStatus.NIL
-
-
-    def add_tail(self, value: Any) -> None:
-        node = self._ValueNode(value)
-        assert(self.__post_tail.prev is not None)
-        self.__post_tail.prev.join_right(node)
-        node.join_right(self.__post_tail)
-        self.__size += 1
-        if self._cursor is None:
-            self._cursor = node
-
-    def remove_all(self, value: Any) -> None:
-        if self.size() == 0:
-            return
-        self.head()
-        self.find(value)
-        while self.get_find_status() == self.FindStatus.OK:
-            self.remove()
-            assert(self.get_remove_status() == self.RemoveStatus.OK)
-            self.find(value)
 
 
     def is_head(self) -> bool:
@@ -293,6 +317,9 @@ class TwoWayList(ParentList):
         self.__left_status = self.LeftStatus.NIL
 
 
+    # предусловие: список не пуст
+    # предусловие: левее курсора есть элемент
+    # постусловие: курсор сдвинут на один узел влево
     def left(self) -> None:
         if self._cursor is None:
             self.__left_status = self.LeftStatus.NO_LEFT_NEIGHBOR
