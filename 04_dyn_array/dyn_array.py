@@ -1,13 +1,23 @@
 from typing import Any
 from enum import Enum
+from ctypes import py_object, Array
 
 class DynArray:
+
+    DEFAULT_CAPACITY: int = 16
+
+    __capacity: int
+    __count: int
+    __data: Array[Any]
     
     # конструктор
     # постусловие: создан новый пустой массив
-    # постусловие: размер буфера равен 16
+    # постусловие: размер буфера равен DEFAULT_CAPACITY
     def __init__(self) -> None:
-        pass
+        self.make_array(self.DEFAULT_CAPACITY)
+        self.__count = 0
+        self.__get_item_status = self.GetItemStatus.NIL
+        self.__remove_status = self.RemoveStatus.NIL
 
 
     # команды
@@ -15,12 +25,14 @@ class DynArray:
     # предусловие: размер массива не больше нового размера буфера
     # постусловие: размер буфера равен заданному значению
     def make_array(self, new_capacity: int) -> None:
-        pass
+        self.__capacity = new_capacity
+        self.__data = (self.__capacity * py_object)()
 
     # постусловие: в конец массива добавлено новое значение
     # постусловие: размер буфера не меньше размера массива
     def append(self, item: Any) -> None:
-        pass
+        self.__data[self.__count] = item
+        self.__count += 1
 
     
     # предусловие: значение индекса больше либо равно нулю и меньше либо равно размеру массива
@@ -44,25 +56,43 @@ class DynArray:
     #              все последующие элементы сдвинуты на одну позицию вниз
     # постусловие: размер буфера не превышает размер массива более чем в 2 раза
     def remove(self, index: int) -> None:
-        pass
+        if index < 0 or index >= self.__count:
+            self.__remove_status = self.RemoveStatus.INDEX_OUT_OF_RANGE
+            return
 
     class RemoveStatus(Enum):
         NIL = 0,
         OK = 1,
         INDEX_OUT_OF_RANGE = 2,
 
+    __remove_status: RemoveStatus
+
     def get_remove_status(self) -> RemoveStatus:
-        return self.RemoveStatus.NIL
+        return self.__remove_status
     
     
     # запросы
 
     def get_count(self) -> int:
-        return 0
+        return self.__count
 
     def get_capacity(self) -> int:
-        return 0
+        return self.__capacity
 
     # предусловие: значение индекса больше или равно нулю и меньше размера массива
     def get_item(self, index: int) -> Any:
-        pass
+        if index < 0 or index >= self.__count:
+            self.__get_item_status = self.GetItemStatus.INDEX_OUT_OF_RANGE
+            return
+        self.__get_item_status = self.GetItemStatus.OK
+        return self.__data[index]
+
+    class GetItemStatus(Enum):
+        NIL = 0,
+        OK = 1,
+        INDEX_OUT_OF_RANGE = 2,
+
+    __get_item_status: GetItemStatus
+
+    def get_get_item_status(self) -> GetItemStatus:
+        return self.__get_item_status
