@@ -8,32 +8,48 @@ class DynArray:
     EXTEND_FACTOR: float = 2.0
     SHRINK_THRESHOLD_FACTOR: float = 0.5
     SHRINK_DIVISOR: float = 1.5
-    
+
     __capacity: int
     __count: int
     __data: Array[Any]
-    
+
     # конструктор
     # постусловие: создан новый пустой массив
     # постусловие: размер буфера равен DEFAULT_CAPACITY
     def __init__(self) -> None:
         self.__count = 0
         self.make_array(self.DEFAULT_CAPACITY)
+        self.__make_array_status = self.MakeArrayStatus.NIL
         self.__get_item_status = self.GetItemStatus.NIL
         self.__insert_status = self.InsertStatus.NIL
         self.__remove_status = self.RemoveStatus.NIL
 
 
     # команды
-    
+
     # предусловие: размер массива не больше нового размера буфера
     # постусловие: размер буфера равен заданному значению
     def make_array(self, new_capacity: int) -> None:
+        if new_capacity == 0 or new_capacity < self.__count:
+            self.__make_array_status = self.MakeArrayStatus.BUFFER_TO_SHORT
+            return
         new_data = (new_capacity * py_object)()
         if self.__count > 0:
             new_data[:self.__count] = self.__data[:self.__count]
         self.__capacity = new_capacity
         self.__data = new_data
+        self.__make_array_status = self.MakeArrayStatus.OK
+
+    class MakeArrayStatus(Enum):
+        NIL = 0,
+        OK = 1,
+        BUFFER_TO_SHORT = 2,
+
+    __make_array_status: MakeArrayStatus
+
+    def get_make_array_status(self) -> MakeArrayStatus:
+        return self.__make_array_status
+
 
     # постусловие: в конец массива добавлено новое значение
     # постусловие: если размер массива был меньше размера буфера
@@ -72,7 +88,7 @@ class DynArray:
     def get_insert_status(self) -> InsertStatus:
         return self.__insert_status
 
-    
+
     # предусловие: значение индекса больше или равно нулю и меньше размера массива
     # постусловие: из позиции с заданным индексом удалено значение,
     #              все последующие элементы сдвинуты на одну позицию вниз
@@ -99,8 +115,8 @@ class DynArray:
 
     def get_remove_status(self) -> RemoveStatus:
         return self.__remove_status
-    
-    
+
+
     # запросы
 
     def get_count(self) -> int:
