@@ -3,6 +3,7 @@ from typing import Any
 
 import queues
 
+
 class Test(unittest.TestCase):
 
     Queue = queues.Queue
@@ -50,6 +51,7 @@ class Test(unittest.TestCase):
         q.pop_front()
         self.assertEqual(q.get_pop_front_status(), self.Queue.PopFrontStatus.OK)
         self.check_empty(q)
+
 
 class Test_Deque(Test):
 
@@ -180,6 +182,7 @@ class Test_Deque(Test):
         q.pop_tail()
         self.assertEqual(q.get_pop_front_status(), self.Queue.PopFrontStatus.OK)
         self.check_empty(q)
+
 
 if __name__ == "__main__":
     unittest.main()
