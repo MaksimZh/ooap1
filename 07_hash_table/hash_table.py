@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generator
+from typing import Any, Callable, Generator, Optional
 from enum import Enum, auto
 from random import randrange
 from math import sqrt
@@ -22,7 +22,8 @@ class Buffer:
         self.__count = 0
         self.__put_status = self.PutStatus.NIL
         self.__delete_status = self.DeleteStatus.NIL
-        self.__get_cell_state_status = self.GetCellStateStauts.NIL
+        self.__get_cell_state_status = self.GetCellStateStatus.NIL
+        self.__get_status = self.GetStatus.NIL
     
     
     # команды
@@ -99,23 +100,23 @@ class Buffer:
     def get_cell_state(self, index: int) -> CellState:
         if self.__is_index_out_of_range(index):
             self.__get_cell_state_status = \
-                self.GetCellStateStauts.INDEX_OUT_OF_RANGE
+                self.GetCellStateStatus.INDEX_OUT_OF_RANGE
             return self.CellState.EMPTY
-        self.__get_cell_state_status = self.GetCellStateStauts.OK
+        self.__get_cell_state_status = self.GetCellStateStatus.OK
         if self.__data[index] is self.__empty_cell:
             return self.CellState.EMPTY
         if self.__data[index] is self.__deleted_cell:
             return self.CellState.DELETED
         return self.CellState.VALUE
 
-    class GetCellStateStauts(Enum):
+    class GetCellStateStatus(Enum):
         NIL = auto(),
         OK = auto(),
         INDEX_OUT_OF_RANGE = auto(),
 
-    __get_cell_state_status: GetCellStateStauts
+    __get_cell_state_status: GetCellStateStatus
 
-    def get_get_cell_state_status(self) -> GetCellStateStauts:
+    def get_get_cell_state_status(self) -> GetCellStateStatus:
         return self.__get_cell_state_status
 
 
@@ -123,7 +124,26 @@ class Buffer:
     # предусловие: индекс лежит в допустимом диапазоне
     # предусловие: ячейка содержит значение
     def get(self, index: int) -> Any:
+        if self.__is_index_out_of_range(index):
+            self.__get_status = \
+                self.GetStatus.INDEX_OUT_OF_RANGE
+            return None
+        if self.get_cell_state(index) != self.CellState.VALUE:
+            self.__get_status = self.GetStatus.NO_VALUE
+            return None
+        self.__get_status = self.GetStatus.OK
         return self.__data[index]
+
+    class GetStatus(Enum):
+        NIL = auto(),
+        OK = auto(),
+        INDEX_OUT_OF_RANGE = auto(),
+        NO_VALUE = auto(),
+
+    __get_status: GetStatus
+
+    def get_get_status(self) -> GetStatus:
+        return self.__get_status
 
 
     def __is_index_out_of_range(self, index: int) -> bool:
@@ -293,29 +313,24 @@ def _prime_candidate_gen(start: int) -> Generator[int, None, None]:
 
 class PrimeScales:
 
-    MIN_SCALE = 11
-
-    __scale_factor: int
     __tester: PrimeTester
+    __scale_factor: int
+    __min_value: int
     __values: list[int]
     __index: int
 
     # конструктор
     # постусловие: текущее простое число - первое больше заданного значения
-    def __init__(self, start: int, scale_factor: int) -> None:
+    def __init__(self, start: int, scale_factor: int, min_value: int) -> None:
         assert(scale_factor > 1.5)
-        if start < self.MIN_SCALE:
-            start = self.MIN_SCALE
-        self.__scale_factor = scale_factor
         self.__tester = PrimeTester()
+        self.__min_value = self.__nearest_prime(min_value)
+        if start < self.__min_value:
+            start = self.__min_value
+        self.__scale_factor = scale_factor
         size = self.__nearest_prime(start)
         self.__values = [size]
-        while self.__values[0] > self.MIN_SCALE:
-            new_start = int(self.__values[0] / self.__scale_factor)
-            self.__values.insert(0, self.__nearest_prime(new_start))
-        if self.__values[0] < self.MIN_SCALE:
-            self.__values[0] = self.MIN_SCALE
-        self.__index = len(self.__values) - 1
+        self.__index = 0
 
 
     # команды
@@ -324,11 +339,17 @@ class PrimeScales:
     # предусловие: текущее простое число больше минимума
     # постусловие: текущее простое число уменьшено
     def scale_down(self) -> None:
-        if self.__index == 0:
+        if self.get() == self.__min_value:
             self.__scale_down_status = self.ScaleDownStatus.MINIMAL
             return
-        self.__index -= 1
         self.__scale_down_status = self.ScaleDownStatus.OK
+        if self.__index > 0:
+            self.__index -= 1
+            return
+        new_start = int(self.__values[0] / self.__scale_factor)
+        self.__values.insert(0, self.__nearest_prime(new_start))
+        if self.__values[0] < self.__min_value:
+            self.__values[0] = self.__min_value
 
     class ScaleDownStatus(Enum):
         NIL = auto(),
@@ -367,15 +388,29 @@ class PrimeScales:
 
 class HashTable:
 
+    MAX_SEARCH_TIME_FACTOR = 0.75
+
     __buffer: Buffer
+    __hash_iterator: HashIterator
     
-    def __init__(self, capacity: int) -> None:
+    # конструктор
+    # постусловие: создана пустая таблица с ёмкостью не ниже заданной
+    def __init__(self, capacity: int, min_capacity: Optional[int] = None) -> None:
+        if min_capacity is None:
+            min_capacity = capacity
+        assert(min_capacity <= capacity)
         self.__buffer = Buffer(capacity)
+        self.__hash_iterator = HashIterator(
+            capacity,
+            limit=int(capacity * self.MAX_SEARCH_TIME_FACTOR))
         self.__remove_status = self.RemoveStatus.NIL
 
 
     # команды
 
+    # удалить указанное значение из таблицы
+    # предусловие: указанное значение содержится в таблице
+    # постусловие: из таблицы удалено указанное значение
     def remove(self, value: Any) -> None:
         self.__remove_status = self.RemoveStatus.NOT_FOUND
 
@@ -390,14 +425,46 @@ class HashTable:
         return self.__remove_status
 
 
+    # добавить указанное значение в таблицу
+    # постусловие: в таблицу добавлено указанное значение
     def add(self, value: Any) -> None:
-        pass
+        self.__hash_iterator.start(value)
+        while self.__hash_iterator.is_index_valid():
+            index = self.__hash_iterator.get_index()
+            assert(self.__hash_iterator.get_get_index_status() == \
+                HashIterator.GetIndexStatus.OK)
+            if self.__buffer.get_cell_state(index) != Buffer.CellState.VALUE:
+                break
+            self.__hash_iterator.next()
+        if self.__hash_iterator.is_index_valid():
+            index = self.__hash_iterator.get_index()
+            assert(self.__hash_iterator.get_get_index_status() == \
+                HashIterator.GetIndexStatus.OK)
+            self.__buffer.put(index, value)
+            return
 
 
     # запросы
 
+    # получить количество значений в таблице
     def get_count(self) -> int:
         return self.__buffer.get_count()
 
+    # проверить содержит ли таблица указанное значение
     def contains(self, value: Any) -> bool:
-        return False
+        self.__hash_iterator.start(value)
+        while self.__hash_iterator.is_index_valid():
+            index = self.__hash_iterator.get_index()
+            assert(self.__hash_iterator.get_get_index_status() == \
+                HashIterator.GetIndexStatus.OK)
+            cell_state = self.__buffer.get_cell_state(index)
+            assert(self.__buffer.get_get_cell_state_status() == \
+                Buffer.GetCellStateStatus.OK)
+            if cell_state == Buffer.CellState.EMPTY:
+                return False
+            if cell_state == Buffer.CellState.DELETED:
+                continue
+            if cell_state == Buffer.CellState.VALUE and self.__buffer.get(index) == value:
+                return True
+            self.__hash_iterator.next()
+        assert(False)

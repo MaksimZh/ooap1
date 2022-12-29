@@ -14,36 +14,53 @@ class Test_Buffer(unittest.TestCase):
         count: int = 0
         for i in range(len(pattern)):
             cell_state = buffer.get_cell_state(i)
+            value = buffer.get(i)
             self.assertEqual(buffer.get_get_cell_state_status(),
-                Buffer.GetCellStateStauts.OK)
+                Buffer.GetCellStateStatus.OK)
             if pattern[i] == EMPTY:
                 self.assertEqual(cell_state, EMPTY)
+                self.assertEqual(buffer.get_get_status(), Buffer.GetStatus.NO_VALUE)
                 continue
             if pattern[i] == DELETED:
                 self.assertEqual(cell_state, DELETED)
+                self.assertEqual(buffer.get_get_status(), Buffer.GetStatus.NO_VALUE)
                 continue
             self.assertEqual(cell_state, VALUE)
             count += 1
-            self.assertEqual(buffer.get(i), pattern[i])
+            self.assertEqual(value, pattern[i])
+            self.assertEqual(buffer.get_get_status(), Buffer.GetStatus.OK)
         
     def test_empty(self):
         b = Buffer(5)
         self.assertEqual(b.get_put_status(), Buffer.PutStatus.NIL)
         self.assertEqual(b.get_delete_status(), Buffer.DeleteStatus.NIL)
-        self.assertEqual(b.get_get_cell_state_status(), Buffer.GetCellStateStauts.NIL)
+        self.assertEqual(b.get_get_cell_state_status(), Buffer.GetCellStateStatus.NIL)
+        self.assertEqual(b.get_get_status(), Buffer.GetStatus.NIL)
         self.check(b, [EMPTY] * 5)
         b.get_cell_state(-1)
         self.assertEqual(b.get_get_cell_state_status(),
-            Buffer.GetCellStateStauts.INDEX_OUT_OF_RANGE)
+            Buffer.GetCellStateStatus.INDEX_OUT_OF_RANGE)
         b.get_cell_state(5)
         self.assertEqual(b.get_get_cell_state_status(),
-            Buffer.GetCellStateStauts.INDEX_OUT_OF_RANGE)
+            Buffer.GetCellStateStatus.INDEX_OUT_OF_RANGE)
         b.get_cell_state(-42)
         self.assertEqual(b.get_get_cell_state_status(),
-            Buffer.GetCellStateStauts.INDEX_OUT_OF_RANGE)
+            Buffer.GetCellStateStatus.INDEX_OUT_OF_RANGE)
         b.get_cell_state(42)
         self.assertEqual(b.get_get_cell_state_status(),
-            Buffer.GetCellStateStauts.INDEX_OUT_OF_RANGE)
+            Buffer.GetCellStateStatus.INDEX_OUT_OF_RANGE)
+        b.get(-1)
+        self.assertEqual(b.get_get_status(),
+            Buffer.GetStatus.INDEX_OUT_OF_RANGE)
+        b.get(5)
+        self.assertEqual(b.get_get_status(),
+            Buffer.GetStatus.INDEX_OUT_OF_RANGE)
+        b.get(-42)
+        self.assertEqual(b.get_get_status(),
+            Buffer.GetStatus.INDEX_OUT_OF_RANGE)
+        b.get(42)
+        self.assertEqual(b.get_get_status(),
+            Buffer.GetStatus.INDEX_OUT_OF_RANGE)
 
     def test_put(self):
         b = Buffer(5)
@@ -162,8 +179,7 @@ class Test_PrimeTester(unittest.TestCase):
 class Test_PrimeScales(unittest.TestCase):
 
     def test(self):
-        pp = PrimeScales(24, 2)
-        self.assertEqual(pp.MIN_SCALE, 11)
+        pp = PrimeScales(24, scale_factor=2, min_value=11)
         self.assertEqual(pp.get(), 29)
         pp.scale_down()
         self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
@@ -221,7 +237,7 @@ class Test_HashTable(unittest.TestCase):
         h = HashTable(5)
         self.check(h, [])
         h.add(1)
-        #self.check(h, [1])
+        self.check(h, [1])
 
 
 if __name__ == "__main__":
