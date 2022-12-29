@@ -220,14 +220,14 @@ class Test_PrimeScales(unittest.TestCase):
 
 class Test_HashTable(unittest.TestCase):
 
-    def check(self, table: HashTable, values: list[Any]):
+    def check(self, table: HashTable, values: set[Any]):
         self.assertEqual(table.get_count(), len(values))
         for v in values:
             self.assertTrue(table.contains(v))
 
     def test_empty(self):
         h = HashTable(5)
-        self.check(h, [])
+        self.check(h, set())
         self.assertEqual(h.get_remove_status(), HashTable.RemoveStatus.NIL)
         self.assertFalse(h.contains(1))
         h.remove(1)
@@ -235,9 +235,19 @@ class Test_HashTable(unittest.TestCase):
 
     def test_fill(self):
         h = HashTable(5)
-        self.check(h, [])
-        h.add(1)
-        self.check(h, [1])
+        self.check(h, set())
+        h.add("a")
+        self.check(h, {"a"})
+        h.add("b")
+        self.check(h, {"a", "b"})
+        h.add("a")
+        self.check(h, {"a", "b"})
+        h.add("c")
+        self.check(h, {"a", "b", "c"})
+        h.add("d")
+        self.check(h, {"a", "b", "c", "d"})
+        h.add("e")
+        self.check(h, {"a", "b", "c", "d", "e"})
 
 
 if __name__ == "__main__":

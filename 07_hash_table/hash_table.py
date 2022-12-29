@@ -388,7 +388,7 @@ class PrimeScales:
 
 class HashTable:
 
-    MAX_SEARCH_TIME_FACTOR = 0.75
+    MAX_SEARCH_TIME = 10
 
     __buffer: Buffer
     __hash_iterator: HashIterator
@@ -402,7 +402,7 @@ class HashTable:
         self.__buffer = Buffer(capacity)
         self.__hash_iterator = HashIterator(
             capacity,
-            limit=int(capacity * self.MAX_SEARCH_TIME_FACTOR))
+            limit=min(capacity, self.MAX_SEARCH_TIME))
         self.__remove_status = self.RemoveStatus.NIL
 
 
@@ -426,6 +426,7 @@ class HashTable:
 
 
     # добавить указанное значение в таблицу
+    # предусловие: указанное значение отсутствует в таблице
     # постусловие: в таблицу добавлено указанное значение
     def add(self, value: Any) -> None:
         self.__hash_iterator.start(value)
@@ -441,6 +442,7 @@ class HashTable:
             assert(self.__hash_iterator.get_get_index_status() == \
                 HashIterator.GetIndexStatus.OK)
             self.__buffer.put(index, value)
+            assert(self.__buffer.get_put_status() == Buffer.PutStatus.OK)
             return
 
 
@@ -463,8 +465,12 @@ class HashTable:
             if cell_state == Buffer.CellState.EMPTY:
                 return False
             if cell_state == Buffer.CellState.DELETED:
+                self.__hash_iterator.next()
                 continue
-            if cell_state == Buffer.CellState.VALUE and self.__buffer.get(index) == value:
-                return True
-            self.__hash_iterator.next()
+            found_value = self.__buffer.get(index)
+            assert(self.__buffer.get_get_status() == Buffer.GetStatus.OK)
+            if found_value != value:
+                self.__hash_iterator.next()
+                continue
+            return True
         assert(False)
