@@ -1,6 +1,7 @@
-from typing import Any, Callable
+from typing import Any, Callable, Generator
 from enum import Enum, auto
 from random import randrange
+from math import sqrt
 
 
 class Buffer:
@@ -200,6 +201,10 @@ class HashIterator:
     
     # запросы
 
+    # проверка можно ли получить индекс
+    def is_index_valid(self) -> bool:
+        return self.__started and self.__count < self.__limit
+
     # получить текущий индекс
     # предусловие: индекс был сгенерирован
     # предусловия: счётчик индексов не достиг лимита
@@ -229,6 +234,135 @@ def _make_hash_func(size: int, p: int) -> Callable[[int], int]:
     a = randrange(1, p)
     b = randrange(0, p)
     return lambda x: ((a * x + b) % p) % size    
+
+
+class PrimeTester:
+
+    __factors: list[int]
+    __generator: Generator[int, None, None]
+
+    # конструктор
+    def __init__(self) -> None:
+        self.__generator = _prime_candidate_gen(2)
+        self.__factors = [next(self.__generator)]
+
+
+    # запросы
+
+    # проверить является ли число простым
+    def is_prime(self, value: int) -> bool:
+        assert(value > 1)
+        max_factor = int(sqrt(value))
+        self.__ensure_enough_factors(max_factor)
+        i = 0
+        while self.__factors[i] <= max_factor:
+            if value % self.__factors[i] == 0:
+                return False
+            i += 1
+        return True
+
+    
+    def __ensure_enough_factors(self, max_factor: int) -> None:
+        while self.__factors[-1] <= max_factor:
+            self.__factors.append(next(self.__generator))
+
+
+def _prime_candidate_gen(start: int) -> Generator[int, None, None]:
+    window = 30
+    low_primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+    offsets = [1, 7, 11, 13, 17, 19, 23, 29]
+    if start < window:
+        i = 0
+        while low_primes[i] < start:
+            i += 1
+        for v in low_primes[i:]:
+            yield v
+        base = 0
+    else:
+        base = window * (start // window)
+        i = 0
+        while base + offsets[i] < start:
+            i += 1
+        for offset in offsets[i:]:
+            yield base + offset
+    while True:
+        base += window
+        for offset in offsets:
+            yield base + offset
+
+
+class PrimeScales:
+
+    MIN_SCALE = 11
+
+    __scale_factor: int
+    __tester: PrimeTester
+    __values: list[int]
+    __index: int
+
+    # конструктор
+    # постусловие: текущее простое число - первое больше заданного значения
+    def __init__(self, start: int, scale_factor: int) -> None:
+        assert(scale_factor > 1.5)
+        if start < self.MIN_SCALE:
+            start = self.MIN_SCALE
+        self.__scale_factor = scale_factor
+        self.__tester = PrimeTester()
+        size = self.__nearest_prime(start)
+        self.__values = [size]
+        while self.__values[0] > self.MIN_SCALE:
+            new_start = int(self.__values[0] / self.__scale_factor)
+            self.__values.insert(0, self.__nearest_prime(new_start))
+        if self.__values[0] < self.MIN_SCALE:
+            self.__values[0] = self.MIN_SCALE
+        self.__index = len(self.__values) - 1
+
+
+    # команды
+
+    # уменьшить текущее простое число
+    # предусловие: текущее простое число больше минимума
+    # постусловие: текущее простое число уменьшено
+    def scale_down(self) -> None:
+        if self.__index == 0:
+            self.__scale_down_status = self.ScaleDownStatus.MINIMAL
+            return
+        self.__index -= 1
+        self.__scale_down_status = self.ScaleDownStatus.OK
+
+    class ScaleDownStatus(Enum):
+        NIL = auto(),
+        OK = auto(),
+        MINIMAL = auto(),
+
+    __scale_down_status: ScaleDownStatus
+
+    def get_scale_down_status(self) -> ScaleDownStatus:
+        return self.__scale_down_status
+
+    
+    # увеличить текущее простое число
+    # постусловие: текущее простое число увеличено
+    def scale_up(self) -> None:
+        if self.__index == len(self.__values) - 1:
+            next_start = int(self.get() * self.__scale_factor)
+            self.__values.append(self.__nearest_prime(next_start))
+        self.__index += 1
+
+
+    # запросы
+
+    # получить текущее простое число
+    def get(self) -> int:
+        return self.__values[self.__index]
+
+
+    def __nearest_prime(self, start: int) -> int:
+        generator = _prime_candidate_gen(start)
+        value = next(generator)
+        while not self.__tester.is_prime(value):
+            value = next(generator)
+        return value
 
 
 class HashTable:

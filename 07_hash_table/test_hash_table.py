@@ -1,7 +1,7 @@
 import unittest
 from typing import Any
 
-from hash_table import HashTable, HashIterator, Buffer
+from hash_table import HashTable, HashIterator, Buffer, PrimeScales, PrimeTester
 EMPTY = Buffer.CellState.EMPTY
 DELETED = Buffer.CellState.DELETED
 VALUE = Buffer.CellState.VALUE
@@ -108,6 +108,7 @@ class Test_HashIterator(unittest.TestCase):
         size = 17
         limit = 12
         hi = HashIterator(size, limit)
+        self.assertEqual(hi.is_index_valid(), False)
         self.assertEqual(hi.get_get_index_status(), HashIterator.GetIndexStatus.NIL)
         self.assertEqual(hi.get_next_status(), HashIterator.NextStatus.NIL)
         hi.next()
@@ -121,6 +122,7 @@ class Test_HashIterator(unittest.TestCase):
         self.assertLess(i, size)
         indices: set[int] = set([i])
         for _ in range(limit - 1):
+            self.assertEqual(hi.is_index_valid(), True)
             hi.next()
             self.assertEqual(hi.get_next_status(), HashIterator.NextStatus.OK)
             i = hi.get_index()
@@ -130,6 +132,7 @@ class Test_HashIterator(unittest.TestCase):
             self.assertNotIn(i, indices)
             indices.add(i)
         hi.next()
+        self.assertEqual(hi.is_index_valid(), False)
         self.assertEqual(hi.get_next_status(), HashIterator.NextStatus.LIMIT_REACHED)
         hi.get_index()
         self.assertEqual(hi.get_get_index_status(), HashIterator.GetIndexStatus.LIMIT_REACHED)
@@ -137,6 +140,66 @@ class Test_HashIterator(unittest.TestCase):
     def test(self):
         for _ in range(100):
             self.check_once()
+
+
+class Test_PrimeTester(unittest.TestCase):
+
+    def test(self):
+        pt = PrimeTester()
+        self.assertTrue(pt.is_prime(2))
+        self.assertTrue(pt.is_prime(3))
+        self.assertTrue(pt.is_prime(5))
+        self.assertTrue(pt.is_prime(43))
+        self.assertTrue(pt.is_prime(53))
+        self.assertTrue(pt.is_prime(2017))
+        self.assertFalse(pt.is_prime(6))
+        self.assertFalse(pt.is_prime(14))
+        self.assertFalse(pt.is_prime(56))
+        self.assertFalse(pt.is_prime(128))
+        self.assertFalse(pt.is_prime(4002))
+
+
+class Test_PrimeScales(unittest.TestCase):
+
+    def test(self):
+        pp = PrimeScales(24, 2)
+        self.assertEqual(pp.MIN_SCALE, 11)
+        self.assertEqual(pp.get(), 29)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
+        self.assertEqual(pp.get(), 17)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
+        self.assertEqual(pp.get(), 11)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.MINIMAL)
+        self.assertEqual(pp.get(), 11)
+        pp.scale_up()
+        self.assertEqual(pp.get(), 17)
+        pp.scale_up()
+        self.assertEqual(pp.get(), 29)
+        pp.scale_up()
+        self.assertEqual(pp.get(), 59)
+        pp.scale_up()
+        self.assertEqual(pp.get(), 127)
+        pp.scale_up()
+        self.assertEqual(pp.get(), 257)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
+        self.assertEqual(pp.get(), 127)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
+        self.assertEqual(pp.get(), 59)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
+        self.assertEqual(pp.get(), 29)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
+        self.assertEqual(pp.get(), 17)
+        pp.scale_down()
+        self.assertEqual(pp.get_scale_down_status(), PrimeScales.ScaleDownStatus.OK)
+        self.assertEqual(pp.get(), 11)
+
 
 
 class Test_HashTable(unittest.TestCase):
