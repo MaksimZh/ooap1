@@ -253,7 +253,62 @@ class HashIterator:
 def _make_hash_func(size: int, p: int) -> Callable[[int], int]:
     a = randrange(1, p)
     b = randrange(0, p)
-    return lambda x: ((a * x + b) % p) % size    
+    return lambda x: ((a * x + b) % p) % size
+
+
+class HashBuffer(Buffer):
+
+    __hash_iterator: HashIterator
+    
+    # конструктор
+    # предусловия: лимит индексов не превосходит размер
+    # постусловие: создан новый пустой буфер заданного размера
+    def __init__(self, capacity: int, limit: int) -> None:
+        super().__init__(capacity)
+        self.__hash_iterator = HashIterator(capacity, min(capacity, limit))
+
+    # запросы
+
+    # получить индекс ячейки со значением или для вставки значения
+    def find_cell(self, value: Any) -> int:
+        deleted_index: Optional[int] = None
+        self.__hash_iterator.start(value)
+        while self.__hash_iterator.is_index_valid():
+            index = self.__hash_iterator.get_index()
+            assert(self.__hash_iterator.get_get_index_status() == \
+                HashIterator.GetIndexStatus.OK)
+            cell_state = self.get_cell_state(index)
+            if cell_state == Buffer.CellState.EMPTY:
+                self.__find_cell_status = self.FindCellStatus.VACANCY_FOUND
+                return index
+            if cell_state == Buffer.CellState.DELETED and \
+                    deleted_index is None:
+                deleted_index = index
+                self.__hash_iterator.next()
+                continue
+            assert(cell_state == Buffer.CellState.VALUE)
+            cell_value = self.get(index)
+            assert(self.get_get_status() == Buffer.GetStatus.OK)
+            if cell_value == value:
+                self.__find_cell_status = self.FindCellStatus.VALUE_FOUND
+                return index
+            self.__hash_iterator.next()
+        if deleted_index is not None:
+            self.__find_cell_status = self.FindCellStatus.VACANCY_FOUND
+            return deleted_index
+        self.__find_cell_status = self.FindCellStatus.LIMIT_REACHED
+        return 0
+
+    class FindCellStatus(Enum):
+        NIL = auto(),           # запрос не выполнялся
+        VALUE_FOUND = auto(),   # найденная ячейка содержит заданное значение
+        VACANCY_FOUND = auto(), # найдена ячейка для вставки заданного значения
+        LIMIT_REACHED = auto(), # достигнут лимит проверенных ячеек
+
+    __find_cell_status: FindCellStatus
+
+    def get_find_cell_status(self) -> FindCellStatus:
+        return self.__find_cell_status    
 
 
 class PrimeTester:
@@ -388,10 +443,12 @@ class PrimeScales:
 
 class HashTable:
 
-    MAX_SEARCH_TIME = 10
+    MAX_COLLISIONS = 100
+    SCALE_FACTOR = 2
+    MIN_FILL_FACTOR = 0.1
 
-    __buffer: Buffer
-    __hash_iterator: HashIterator
+    __buffer: HashBuffer
+    __scales: PrimeScales
     
     # конструктор
     # постусловие: создана пустая таблица с ёмкостью не ниже заданной
@@ -399,10 +456,10 @@ class HashTable:
         if min_capacity is None:
             min_capacity = capacity
         assert(min_capacity <= capacity)
-        self.__buffer = Buffer(capacity)
-        self.__hash_iterator = HashIterator(
-            capacity,
-            limit=min(capacity, self.MAX_SEARCH_TIME))
+        self.__scales = PrimeScales(capacity, self.SCALE_FACTOR, min_capacity)
+        size = self.__scales.get()
+        self.__buffer = HashBuffer(size, self.MAX_COLLISIONS)
+        self.__add_status = self.AddStatus.NIL
         self.__remove_status = self.RemoveStatus.NIL
 
 
@@ -429,21 +486,31 @@ class HashTable:
     # предусловие: указанное значение отсутствует в таблице
     # постусловие: в таблицу добавлено указанное значение
     def add(self, value: Any) -> None:
-        self.__hash_iterator.start(value)
-        while self.__hash_iterator.is_index_valid():
-            index = self.__hash_iterator.get_index()
-            assert(self.__hash_iterator.get_get_index_status() == \
-                HashIterator.GetIndexStatus.OK)
-            if self.__buffer.get_cell_state(index) != Buffer.CellState.VALUE:
-                break
-            self.__hash_iterator.next()
-        if self.__hash_iterator.is_index_valid():
-            index = self.__hash_iterator.get_index()
-            assert(self.__hash_iterator.get_get_index_status() == \
-                HashIterator.GetIndexStatus.OK)
+        index = self.__buffer.find_cell(value)
+        if self.__buffer.get_find_cell_status() == \
+                HashBuffer.FindCellStatus.VACANCY_FOUND:
             self.__buffer.put(index, value)
             assert(self.__buffer.get_put_status() == Buffer.PutStatus.OK)
+            self.__add_status = self.AddStatus.OK
             return
+        if self.__buffer.get_find_cell_status() == \
+                HashBuffer.FindCellStatus.VALUE_FOUND:
+            self.__add_status = self.AddStatus.ALREADY_CONTAINS
+            return
+        assert(self.__buffer.get_find_cell_status() == \
+            HashBuffer.FindCellStatus.LIMIT_REACHED)
+        self.__scale_up()
+        self.add(value)
+
+    class AddStatus(Enum):
+        NIL = auto(),
+        OK = auto(),
+        ALREADY_CONTAINS = auto(),
+
+    __add_status: AddStatus
+
+    def get_add_status(self) -> AddStatus:
+        return self.__add_status
 
 
     # запросы
@@ -454,23 +521,27 @@ class HashTable:
 
     # проверить содержит ли таблица указанное значение
     def contains(self, value: Any) -> bool:
-        self.__hash_iterator.start(value)
-        while self.__hash_iterator.is_index_valid():
-            index = self.__hash_iterator.get_index()
-            assert(self.__hash_iterator.get_get_index_status() == \
-                HashIterator.GetIndexStatus.OK)
-            cell_state = self.__buffer.get_cell_state(index)
-            assert(self.__buffer.get_get_cell_state_status() == \
-                Buffer.GetCellStateStatus.OK)
-            if cell_state == Buffer.CellState.EMPTY:
+        self.__buffer.find_cell(value)
+        return self.__buffer.get_find_cell_status() == \
+            HashBuffer.FindCellStatus.VALUE_FOUND
+
+
+    def __scale_up(self) -> None:
+        self.__scales.scale_up()
+        while True:
+            new_buffer = HashBuffer(self.__scales.get(), self.MAX_COLLISIONS)
+            if _try_copy_hash_buffer(self.__buffer, new_buffer):
+                self.__buffer = new_buffer
+                return
+
+
+def _try_copy_hash_buffer(source: HashBuffer, dest: HashBuffer) -> bool:
+    for index in range(source.get_capacity()):
+        if source.get_cell_state(index) == Buffer.CellState.VALUE:
+            value = source.get(index)
+            new_index = dest.find_cell(value)
+            if dest.get_find_cell_status() != \
+                    HashBuffer.FindCellStatus.VACANCY_FOUND:
                 return False
-            if cell_state == Buffer.CellState.DELETED:
-                self.__hash_iterator.next()
-                continue
-            found_value = self.__buffer.get(index)
-            assert(self.__buffer.get_get_status() == Buffer.GetStatus.OK)
-            if found_value != value:
-                self.__hash_iterator.next()
-                continue
-            return True
-        assert(False)
+            dest.put(new_index, value)
+    return True

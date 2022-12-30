@@ -1,7 +1,7 @@
 import unittest
 from typing import Any
 
-from hash_table import HashTable, HashIterator, Buffer, PrimeScales, PrimeTester
+from hash_table import HashTable, HashBuffer, HashIterator, Buffer, PrimeScales, PrimeTester
 EMPTY = Buffer.CellState.EMPTY
 DELETED = Buffer.CellState.DELETED
 VALUE = Buffer.CellState.VALUE
@@ -159,6 +159,27 @@ class Test_HashIterator(unittest.TestCase):
             self.check_once()
 
 
+class Test_HashBuffer(unittest.TestCase):
+
+    def test(self):
+        hb = HashBuffer(5, 3)
+        ia = hb.find_cell("a")
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VACANCY_FOUND)
+        hb.put(ia, "a")
+        ib = hb.find_cell("b")
+        self.assertNotEqual(ib, ia)
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VACANCY_FOUND)
+        hb.put(ib, "b")
+        self.assertEqual(hb.find_cell("a"), ia)
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VALUE_FOUND)
+        self.assertEqual(hb.find_cell("b"), ib)
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VALUE_FOUND)
+        for i in set(range(5)).difference({ia, ib}):
+            hb.put(i, i)
+        hb.find_cell("c")
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.LIMIT_REACHED)
+
+
 class Test_PrimeTester(unittest.TestCase):
 
     def test(self):
@@ -228,26 +249,37 @@ class Test_HashTable(unittest.TestCase):
     def test_empty(self):
         h = HashTable(5)
         self.check(h, set())
+        self.assertEqual(h.get_add_status(), HashTable.AddStatus.NIL)
         self.assertEqual(h.get_remove_status(), HashTable.RemoveStatus.NIL)
         self.assertFalse(h.contains(1))
         h.remove(1)
         self.assertEqual(h.get_remove_status(), HashTable.RemoveStatus.NOT_FOUND)
 
     def test_fill(self):
-        h = HashTable(5)
+        h = HashTable(3)
         self.check(h, set())
         h.add("a")
+        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
         self.check(h, {"a"})
         h.add("b")
+        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
         self.check(h, {"a", "b"})
         h.add("a")
+        self.assertEqual(h.get_add_status(), HashTable.AddStatus.ALREADY_CONTAINS)
         self.check(h, {"a", "b"})
         h.add("c")
+        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
         self.check(h, {"a", "b", "c"})
         h.add("d")
+        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
         self.check(h, {"a", "b", "c", "d"})
         h.add("e")
+        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
         self.check(h, {"a", "b", "c", "d", "e"})
+        for i in range(10000):
+            h.add(i)
+            self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
+            self.assertTrue(h.contains(i))
 
 
 if __name__ == "__main__":
