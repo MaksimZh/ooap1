@@ -29,6 +29,7 @@ class Test_Buffer(unittest.TestCase):
             count += 1
             self.assertEqual(value, pattern[i])
             self.assertEqual(buffer.get_get_status(), Buffer.GetStatus.OK)
+        self.assertEqual(buffer.get_count(), count)
         
     def test_empty(self):
         b = Buffer(5)
@@ -170,14 +171,25 @@ class Test_HashBuffer(unittest.TestCase):
         self.assertNotEqual(ib, ia)
         self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VACANCY_FOUND)
         hb.put(ib, "b")
+        ic = hb.find_cell("c")
+        self.assertNotIn(ic, {ia, ib})
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VACANCY_FOUND)
+        hb.put(ic, "c")
         self.assertEqual(hb.find_cell("a"), ia)
         self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VALUE_FOUND)
         self.assertEqual(hb.find_cell("b"), ib)
         self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VALUE_FOUND)
-        for i in set(range(5)).difference({ia, ib}):
+        self.assertEqual(hb.find_cell("c"), ic)
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VALUE_FOUND)
+        for i in set(range(5)).difference({ia, ib, ic}):
             hb.put(i, i)
-        hb.find_cell("c")
+        hb.find_cell("d")
         self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.LIMIT_REACHED)
+        hb.delete(ia)
+        hb.delete(ib)
+        hb.delete(ic)
+        self.assertEqual(hb.find_cell("a"), ia)
+        self.assertEqual(hb.get_find_cell_status(), HashBuffer.FindCellStatus.VACANCY_FOUND)
 
 
 class Test_PrimeTester(unittest.TestCase):
@@ -248,38 +260,59 @@ class Test_HashTable(unittest.TestCase):
 
     def test_empty(self):
         h = HashTable(5)
+        self.assertEqual(h.get_capacity(), 5)
         self.check(h, set())
-        self.assertEqual(h.get_add_status(), HashTable.AddStatus.NIL)
-        self.assertEqual(h.get_remove_status(), HashTable.RemoveStatus.NIL)
+        self.assertEqual(h.get_put_status(), HashTable.PutStatus.NIL)
+        self.assertEqual(h.get_delete_status(), HashTable.DeleteStatus.NIL)
         self.assertFalse(h.contains(1))
-        h.remove(1)
-        self.assertEqual(h.get_remove_status(), HashTable.RemoveStatus.NOT_FOUND)
+        h.delete(1)
+        self.assertEqual(h.get_delete_status(), HashTable.DeleteStatus.NOT_FOUND)
 
     def test_fill(self):
         h = HashTable(3)
+        self.assertEqual(h.get_capacity(), 3)
         self.check(h, set())
-        h.add("a")
-        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
+        h.put("a")
+        self.assertEqual(h.get_put_status(), HashTable.PutStatus.OK)
         self.check(h, {"a"})
-        h.add("b")
-        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
+        h.put("b")
+        self.assertEqual(h.get_put_status(), HashTable.PutStatus.OK)
         self.check(h, {"a", "b"})
-        h.add("a")
-        self.assertEqual(h.get_add_status(), HashTable.AddStatus.ALREADY_CONTAINS)
+        h.put("a")
+        self.assertEqual(h.get_put_status(), HashTable.PutStatus.ALREADY_CONTAINS)
         self.check(h, {"a", "b"})
-        h.add("c")
-        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
+        h.put("c")
+        self.assertEqual(h.get_put_status(), HashTable.PutStatus.OK)
         self.check(h, {"a", "b", "c"})
-        h.add("d")
-        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
+        h.put("d")
+        self.assertEqual(h.get_put_status(), HashTable.PutStatus.OK)
         self.check(h, {"a", "b", "c", "d"})
-        h.add("e")
-        self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
+        h.put("e")
+        self.assertEqual(h.get_put_status(), HashTable.PutStatus.OK)
         self.check(h, {"a", "b", "c", "d", "e"})
+        self.assertGreaterEqual(h.get_capacity(), 5)
         for i in range(10000):
-            h.add(i)
-            self.assertEqual(h.get_add_status(), HashTable.AddStatus.OK)
+            h.put(i)
+            self.assertEqual(h.get_put_status(), HashTable.PutStatus.OK)
+        for i in range(10000):
             self.assertTrue(h.contains(i))
+        self.assertGreaterEqual(h.get_capacity(), 10000)
+
+    def test_delete(self):
+        h = HashTable(10, 5, 10)
+        self.assertGreaterEqual(h.get_capacity(), 10)
+        for v in ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]:
+            h.put(v)
+        self.check(h, {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"})
+        self.assertGreaterEqual(h.get_capacity(), 10)
+        for v in ["a", "b", "c", "d", "e", "f", "g", "h"]:
+            h.delete(v)
+            self.assertEqual(h.get_delete_status(), HashTable.DeleteStatus.OK)
+        self.check(h, {"i", "j"})
+        self.assertGreaterEqual(h.get_capacity(), 10)
+        h.delete("i")
+        self.check(h, {"j"})
+        self.assertEqual(h.get_capacity(), 5)
 
 
 if __name__ == "__main__":

@@ -65,6 +65,7 @@ class Buffer:
             self.__delete_status = self.DeleteStatus.NO_VALUE
             return
         self.__data[index] = self.__deleted_cell
+        self.__count -= 1
         self.__delete_status = self.DeleteStatus.OK
 
     class DeleteStatus(Enum):
@@ -278,12 +279,15 @@ class HashBuffer(Buffer):
             assert(self.__hash_iterator.get_get_index_status() == \
                 HashIterator.GetIndexStatus.OK)
             cell_state = self.get_cell_state(index)
+            assert(self.get_get_cell_state_status() == \
+                Buffer.GetCellStateStatus.OK)
             if cell_state == Buffer.CellState.EMPTY:
                 self.__find_cell_status = self.FindCellStatus.VACANCY_FOUND
                 return index
-            if cell_state == Buffer.CellState.DELETED and \
-                    deleted_index is None:
+            if deleted_index is None and \
+                    cell_state == Buffer.CellState.DELETED:
                 deleted_index = index
+            if cell_state == Buffer.CellState.DELETED:
                 self.__hash_iterator.next()
                 continue
             assert(cell_state == Buffer.CellState.VALUE)
@@ -443,24 +447,26 @@ class PrimeScales:
 
 class HashTable:
 
-    MAX_COLLISIONS = 100
     SCALE_FACTOR = 2
-    MIN_FILL_FACTOR = 0.1
+    MIN_FILL_FACTOR = 1/8
 
     __buffer: HashBuffer
     __scales: PrimeScales
+    __max_collisions: int
     
     # конструктор
     # постусловие: создана пустая таблица с ёмкостью не ниже заданной
-    def __init__(self, capacity: int, min_capacity: Optional[int] = None) -> None:
+    def __init__(self, capacity: int, min_capacity: Optional[int] = None,
+            max_collisions: int = 100) -> None:
         if min_capacity is None:
             min_capacity = capacity
         assert(min_capacity <= capacity)
         self.__scales = PrimeScales(capacity, self.SCALE_FACTOR, min_capacity)
         size = self.__scales.get()
-        self.__buffer = HashBuffer(size, self.MAX_COLLISIONS)
-        self.__add_status = self.AddStatus.NIL
-        self.__remove_status = self.RemoveStatus.NIL
+        self.__max_collisions = max_collisions
+        self.__buffer = HashBuffer(size, self.__max_collisions)
+        self.__put_status = self.PutStatus.NIL
+        self.__delete_status = self.DeleteStatus.NIL
 
 
     # команды
@@ -468,49 +474,58 @@ class HashTable:
     # удалить указанное значение из таблицы
     # предусловие: указанное значение содержится в таблице
     # постусловие: из таблицы удалено указанное значение
-    def remove(self, value: Any) -> None:
-        self.__remove_status = self.RemoveStatus.NOT_FOUND
+    def delete(self, value: Any) -> None:
+        index = self.__buffer.find_cell(value)
+        if self.__buffer.get_find_cell_status() != \
+                HashBuffer.FindCellStatus.VALUE_FOUND:
+            self.__delete_status = self.DeleteStatus.NOT_FOUND
+            return
+        self.__buffer.delete(index)
+        if self.get_count() / self.get_capacity() < self.MIN_FILL_FACTOR:
+            self.__scale_down()
+        self.__delete_status = self.DeleteStatus.OK
 
-    class RemoveStatus(Enum):
+
+    class DeleteStatus(Enum):
         NIL = 0,
         OK = 1,
         NOT_FOUND = 2,
 
-    __remove_status: RemoveStatus
+    __delete_status: DeleteStatus
 
-    def get_remove_status(self) -> RemoveStatus:
-        return self.__remove_status
+    def get_delete_status(self) -> DeleteStatus:
+        return self.__delete_status
 
 
     # добавить указанное значение в таблицу
     # предусловие: указанное значение отсутствует в таблице
     # постусловие: в таблицу добавлено указанное значение
-    def add(self, value: Any) -> None:
+    def put(self, value: Any) -> None:
         index = self.__buffer.find_cell(value)
         if self.__buffer.get_find_cell_status() == \
                 HashBuffer.FindCellStatus.VACANCY_FOUND:
             self.__buffer.put(index, value)
             assert(self.__buffer.get_put_status() == Buffer.PutStatus.OK)
-            self.__add_status = self.AddStatus.OK
+            self.__put_status = self.PutStatus.OK
             return
         if self.__buffer.get_find_cell_status() == \
                 HashBuffer.FindCellStatus.VALUE_FOUND:
-            self.__add_status = self.AddStatus.ALREADY_CONTAINS
+            self.__put_status = self.PutStatus.ALREADY_CONTAINS
             return
         assert(self.__buffer.get_find_cell_status() == \
             HashBuffer.FindCellStatus.LIMIT_REACHED)
         self.__scale_up()
-        self.add(value)
+        self.put(value)
 
-    class AddStatus(Enum):
+    class PutStatus(Enum):
         NIL = auto(),
         OK = auto(),
         ALREADY_CONTAINS = auto(),
 
-    __add_status: AddStatus
+    __put_status: PutStatus
 
-    def get_add_status(self) -> AddStatus:
-        return self.__add_status
+    def get_put_status(self) -> PutStatus:
+        return self.__put_status
 
 
     # запросы
@@ -518,6 +533,10 @@ class HashTable:
     # получить количество значений в таблице
     def get_count(self) -> int:
         return self.__buffer.get_count()
+
+    # получить размер таблицы
+    def get_capacity(self) -> int:
+        return self.__buffer.get_capacity()
 
     # проверить содержит ли таблица указанное значение
     def contains(self, value: Any) -> bool:
@@ -528,8 +547,15 @@ class HashTable:
 
     def __scale_up(self) -> None:
         self.__scales.scale_up()
+        self.__reset_buffer()
+
+    def __scale_down(self) -> None:
+        self.__scales.scale_down()
+        self.__reset_buffer()
+
+    def __reset_buffer(self) -> None:
         while True:
-            new_buffer = HashBuffer(self.__scales.get(), self.MAX_COLLISIONS)
+            new_buffer = HashBuffer(self.__scales.get(), self.__max_collisions)
             if _try_copy_hash_buffer(self.__buffer, new_buffer):
                 self.__buffer = new_buffer
                 return
