@@ -136,10 +136,10 @@ class Buffer:
         return self.__data[index]
 
     class GetStatus(Enum):
-        NIL = auto(),
-        OK = auto(),
-        INDEX_OUT_OF_RANGE = auto(),
-        NO_VALUE = auto(),
+        NIL = auto(),                # команда не вызывалась
+        OK = auto(),                 # успех
+        INDEX_OUT_OF_RANGE = auto(), # индекс за границами буфера
+        NO_VALUE = auto(),           # в ячейке нет значения
 
     __get_status: GetStatus
 
@@ -411,9 +411,9 @@ class PrimeScales:
             self.__values[0] = self.__min_value
 
     class ScaleDownStatus(Enum):
-        NIL = auto(),
-        OK = auto(),
-        MINIMAL = auto(),
+        NIL = auto(),      # команда не вызывалась
+        OK = auto(),       # успех
+        MINIMAL = auto(),  # достигнута нижняя граница
 
     __scale_down_status: ScaleDownStatus
 
@@ -447,8 +447,8 @@ class PrimeScales:
 
 class HashTable:
 
-    SCALE_FACTOR = 2
-    MIN_FILL_FACTOR = 1/8
+    SCALE_FACTOR = 2       # множитель для расширения и сжатия таблицы
+    MIN_FILL_FACTOR = 1/8  # минимальная доля заполнения таблицы до сжатия
 
     __buffer: HashBuffer
     __scales: PrimeScales
@@ -487,9 +487,9 @@ class HashTable:
 
 
     class DeleteStatus(Enum):
-        NIL = 0,
-        OK = 1,
-        NOT_FOUND = 2,
+        NIL = 0,       # команда не выполнялась
+        OK = 1,        # успех
+        NOT_FOUND = 2, # значение не найдено
 
     __delete_status: DeleteStatus
 
@@ -518,9 +518,9 @@ class HashTable:
         self.put(value)
 
     class PutStatus(Enum):
-        NIL = auto(),
-        OK = auto(),
-        ALREADY_CONTAINS = auto(),
+        NIL = auto(),              # команда не выполнялась
+        OK = auto(),               # успех
+        ALREADY_CONTAINS = auto(), # значение уже в таблице
 
     __put_status: PutStatus
 
