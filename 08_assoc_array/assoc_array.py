@@ -61,6 +61,188 @@ class Node:
     def get_right_child(self) -> Optional["Node"]:
         return self.__right_child
 
+
+class BinaryTree:
+
+    __root: Optional[Node]
+    __current: Optional[Node]
+    __size: int
+
+
+    # КОНСТРУКТОР
+    # постусловие: создано пустое дерево
+    def __init__(self) -> None:
+        self.__root = None
+        self.__current = None
+        self.__size = 0
+        self.__add_root_status = self.AddRootStatus.NIL
+        self.__add_child_status = self.AddChildStatus.NIL
+        self.__go_status = self.GoStatus.NIL
+        self.__get_node_value_status = self.GetNodeValueStatus.NIL
+
+
+    # КОМАНДЫ
+
+    # создать корень дерева с заданным значением
+    # предусловие: дерево пустое
+    # постусловие: дерево содержит один элемент с заданным значением
+    # постусловие: текущим элементом является корень
+    def add_root(self, value: Any) -> None:
+        if self.get_size() != 0:
+            self.__add_root_status = self.AddRootStatus.ALREADY_EXISTS
+            return
+        self.__root = Node(value)
+        self.__current = self.__root
+        self.__size += 1
+        self.__add_root_status = self.AddRootStatus.OK
+
+    class AddRootStatus(Enum):
+        NIL = auto(),
+        OK = auto(),
+        ALREADY_EXISTS = auto(),
+
+    __add_root_status: AddRootStatus
+
+    def get_add_root_status(self) -> AddRootStatus:
+        return self.__add_root_status
+
+    
+    # создать левого потомка текущего элемента с заданным значением
+    # предусловие: дерево не пустое
+    # предусловие: текущий элемент не имеет левого потомка
+    # постусловие: в дерево добавлен левый потомок для текущего элемента с заданным значением
+    def add_left_child(self, value: Any) -> None:
+        if self.get_size() == 0:
+            self.__add_child_status = self.AddChildStatus.EMPTY_TREE
+            return
+        assert(self.__current is not None)
+        if self.__current.get_left_child() is not None:
+            self.__add_child_status = self.AddChildStatus.ALREADY_EXISTS
+            return
+        node = Node(value)
+        node.set_parent(self.__current)
+        self.__current.set_left_child(node)
+        self.__size += 1
+
+    # создать правого потомка текущего элемента с заданным значением
+    # предусловие: дерево не пустое
+    # предусловие: текущий элемент не имеет правого потомка
+    # постусловие: в дерево добавлен правый потомок для текущего элемента с заданным значением
+    def add_right_child(self, value: Any) -> None:
+        if self.get_size() == 0:
+            self.__add_child_status = self.AddChildStatus.EMPTY_TREE
+            return
+        assert(self.__current is not None)
+        if self.__current.get_right_child() is not None:
+            self.__add_child_status = self.AddChildStatus.ALREADY_EXISTS
+            return
+        node = Node(value)
+        node.set_parent(self.__current)
+        self.__current.set_right_child(node)
+        self.__size += 1
+
+    class AddChildStatus(Enum):
+        NIL = auto(),
+        OK = auto(),
+        EMPTY_TREE = auto(),
+        ALREADY_EXISTS = auto(),
+
+    __add_child_status: AddChildStatus
+
+    def get_add_child_status(self) -> AddChildStatus:
+        return self.__add_child_status
+
+
+    # переместить курсор на корень дерева
+    # предусловие: дерево не пустое
+    # постусловие: курсор перемещён в корень дерева
+    def go_root(self) -> None:
+        if self.get_size() == 0:
+            self.__go_status = self.GoStatus.NO_TARGET
+            return
+        self.__go(self.__root)
+
+    # переместить курсор к родителю текущего узла
+    # предусловие: дерево не пустое
+    # предусловие: у текущего узла есть родитель
+    # постусловие: курсор перемещён к родителю текущего узла
+    def go_parent(self) -> None:
+        if self.get_size() == 0:
+            self.__go_status = self.GoStatus.NO_TARGET
+            return
+        assert(self.__current is not None)
+        self.__go(self.__current.get_parent())
+
+
+    # переместить курсор к левому потомку текущего узла
+    # предусловие: дерево не пустое
+    # предусловие: у текущего узла есть левый потомок
+    # постусловие: курсор перемещён к левому потомку текущего узла
+    def go_left_child(self) -> None:
+        if self.get_size() == 0:
+            self.__go_status = self.GoStatus.NO_TARGET
+            return
+        assert(self.__current is not None)
+        self.__go(self.__current.get_left_child())
+
+    # переместить курсор к правому потомку текущего узла
+    # предусловие: дерево не пустое
+    # предусловие: у текущего узла есть правый потомок
+    # постусловие: курсор перемещён к правому потомку текущего узла
+    def go_right_child(self) -> None:
+        if self.get_size() == 0:
+            self.__go_status = self.GoStatus.NO_TARGET
+            return
+        assert(self.__current is not None)
+        self.__go(self.__current.get_right_child())
+
+    class GoStatus(Enum):
+        NIL = auto(),    # команда не выполнялась
+        OK = auto(),     # успех
+        NO_TARGET = auto(), # нет узла в заданном направлении
+
+    __go_status: GoStatus
+
+    def get_go_status(self) -> GoStatus:
+        return self.__go_status
+
+
+
+    # ЗАПРОСЫ
+
+    # получить количество узлов
+    def get_size(self) -> int:
+        return self.__size
+
+    # получить значение текущего узла
+    # предусловие: дерево не пусто
+    def get_node_value(self) -> Any:
+        if self.get_size() == 0:
+            self.__get_node_value_status = self.GetNodeValueStatus.EMPTY_TREE
+            return
+        assert(self.__current is not None)
+        self.__get_node_value_status = self.GetNodeValueStatus.OK
+        return self.__current.get_value()
+
+    class GetNodeValueStatus(Enum):
+        NIL = auto(),
+        OK = auto(),
+        EMPTY_TREE = auto(),
+
+    __get_node_value_status: GetNodeValueStatus
+
+    def get_get_node_value_status(self) -> GetNodeValueStatus:
+        return self.__get_node_value_status
+
+    
+    def __go(self, target: Optional[Node]) -> None:
+        if target is None:
+            self.__go_status = self.GoStatus.NO_TARGET
+            return
+        self.__current = target
+        self.__go_status = self.GoStatus.OK
+
+
 """
 class _EmptyNode(Node):
     def __init__(self) -> None:
@@ -123,17 +305,6 @@ class RedBlackTree:
 
     def go_right_child(self) -> None:
         self._go(self.__cursor.get_right_child())
-
-
-    class GoStatus(Enum):
-        NIL = auto(),    # команда не выполнялась
-        OK = auto(),     # успех
-        NO_WAY = auto(), # нет узла в заданном направлении
-
-    __go_status: GoStatus
-
-    def get_go_status(self) -> GoStatus:
-        return self.__go_status
 
 
     # ЗАПРОСЫ
