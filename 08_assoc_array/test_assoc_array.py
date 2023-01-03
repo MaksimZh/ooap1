@@ -1,7 +1,7 @@
 import unittest
 from typing import Any
 
-from assoc_array import Node, BinaryTree
+from assoc_array import Node, BinaryTree, RedBlackTree
 
 
 class Test_Node(unittest.TestCase):
@@ -129,6 +129,16 @@ class Test_BinaryTree(unittest.TestCase):
         self.assertEqual(bt.get_node_value(), "a")
         self.assertEqual(bt.get_get_node_value_status(), BinaryTree.GetNodeValueStatus.OK)
 
+    def test_set(self):
+        bt = BinaryTree()
+        self.assertEqual(bt.get_set_node_value_status(), BinaryTree.SetNodeValueStatus.NIL)
+        bt.set_node_value("foo")
+        self.assertEqual(bt.get_set_node_value_status(), BinaryTree.SetNodeValueStatus.EMPTY_TREE)
+        bt.add_root("a")
+        bt.set_node_value("foo")
+        self.assertEqual(bt.get_set_node_value_status(), BinaryTree.SetNodeValueStatus.OK)
+        self.assertEqual(bt.get_node_value(), "foo")
+
 
     def test_go(self):
         bt = BinaryTree()
@@ -182,6 +192,63 @@ class Test_BinaryTree(unittest.TestCase):
         self.assertEqual(bt.get_go_status(), BinaryTree.GoStatus.OK)
         bt.go_right_child()
         self.assertEqual(bt.get_go_status(), BinaryTree.GoStatus.OK)
+
+    
+    def test_delete(self):
+        bt = BinaryTree()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.NIL)
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.EMPTY_TREE)
+        bt.add_root("a")
+        bt.add_left_child("b")
+        bt.add_right_child("c")
+        bt.go_left_child()
+        bt.add_left_child("d")
+        bt.add_right_child("e")
+        bt.go_parent()
+        bt.go_right_child()
+        bt.add_left_child("f")
+        bt.add_right_child("g")
+        self.check(bt, ["a", ["b", ["d", [], []], ["e", [], []]], ["c", ["f", [], []], ["g", [], []]]])
+        bt.go_root()
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertEqual(bt.get_node_value(), "f")
+        self.check(bt, ["f", ["b", ["d", [], []], ["e", [], []]], ["c", [], ["g", [], []]]])
+        bt.go_root()
+        bt.go_right_child()
+        bt.go_right_child()
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertEqual(bt.get_node_value(), "c")
+        self.check(bt, ["f", ["b", ["d", [], []], ["e", [], []]], ["c", [], []]])
+        bt.go_root()
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertEqual(bt.get_node_value(), "c")
+        self.check(bt, ["c", ["b", ["d", [], []], ["e", [], []]], []])
+        bt.go_root()
+        bt.go_left_child()
+        bt.go_left_child()
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertEqual(bt.get_node_value(), "b")
+        self.check(bt, ["c", ["b", [], ["e", [], []]], []])
+        bt.go_root()
+        bt.go_left_child()
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertEqual(bt.get_node_value(), "e")
+        self.check(bt, ["c", ["e", [], []], []])
+        bt.go_root()
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertEqual(bt.get_node_value(), "e")
+        self.check(bt, ["e", [], []])
+        bt.go_root()
+        bt.delete()
+        self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.check(bt, [])
 
 
     def test_rotate_right_root(self):
@@ -263,71 +330,35 @@ class Test_BinaryTree(unittest.TestCase):
         self.check(bt, ["a", ["b", [], []], ["e", ["c", ["d", [], []], ["f", [], []]], ["g", [], []]]])
 
 
-"""
+def compare(x: Any, y: Any) -> RedBlackTree.CompareResult:
+    if x[0] > y[0]:
+        return RedBlackTree.CompareResult.GREATER
+    if x[0] < y[0]:
+        return RedBlackTree.CompareResult.LESS
+    return RedBlackTree.CompareResult.EQUAL
+
+
 class Test_RedBlackTree(unittest.TestCase):
 
     def test_build(self):
-        rbt = RedBlackTree()
-        self.assertEqual(rbt.get_new_node_status(), RedBlackTree.NewNodeStatus.NIL)
-        self.assertEqual(rbt.get_go_status(), RedBlackTree.GoStatus.NIL)
+        rbt = RedBlackTree(compare)
         self.assertEqual(rbt.get_size(), 0)
-        self.assertTrue(rbt.node_is_empty())
-        rbt.go_parent()
-        self.assertEqual(rbt.get_go_status(), RedBlackTree.GoStatus.NO_WAY)
-        rbt.go_left_child()
-        self.assertEqual(rbt.get_go_status(), RedBlackTree.GoStatus.NO_WAY)
-        rbt.go_right_child()
-        self.assertEqual(rbt.get_go_status(), RedBlackTree.GoStatus.NO_WAY)
-        rbt.to_root()
-        self.assertTrue(rbt.node_is_empty())
-
-        rbt.new_node("a", Node.Color.BLACK)
-        self.assertEqual(rbt.get_new_node_status(), RedBlackTree.NewNodeStatus.OK)
+        self.assertFalse(rbt.has_value(("alpha", None)))
+        rbt.put(("alpha", 1))
         self.assertEqual(rbt.get_size(), 1)
-        self.assertFalse(rbt.node_is_empty())
-        rbt.to_root()
-        self.assertFalse(rbt.node_is_empty())
-        
-        rbt.go_left_child()
-        self.assertEqual(rbt.get_go_status(), RedBlackTree.GoStatus.OK)
-        self.assertTrue(rbt.node_is_empty())
-        rbt.go_parent()
-        self.assertEqual(rbt.get_go_status(), RedBlackTree.GoStatus.OK)
-        self.assertFalse(rbt.node_is_empty())
-        rbt.go_right_child()
-        self.assertEqual(rbt.get_go_status(), RedBlackTree.GoStatus.OK)
-        self.assertTrue(rbt.node_is_empty())        
-        rbt.to_root()
-        self.assertFalse(rbt.node_is_empty())
-
-        rbt.new_node("b", Node.Color.RED)
-        self.assertEqual(rbt.get_new_node_status(), RedBlackTree.NewNodeStatus.NOT_EMPTY_NODE)
-        rbt.go_left_child()
-        rbt.new_node("b", Node.Color.RED)
-        self.assertEqual(rbt.get_new_node_status(), RedBlackTree.NewNodeStatus.OK)
+        self.assertTrue(rbt.has_value(("alpha", None)))
+        self.assertEqual(rbt.get(("alpha", None)), ("alpha", 1))
+        rbt.put(("alpha", 2))
+        self.assertEqual(rbt.get_size(), 1)
+        self.assertTrue(rbt.has_value(("alpha", None)))
+        self.assertEqual(rbt.get(("alpha", None)), ("alpha", 2))
+        rbt.put(("beta", 3))
         self.assertEqual(rbt.get_size(), 2)
-        self.assertFalse(rbt.node_is_empty())
+        self.assertTrue(rbt.has_value(("alpha", None)))
+        self.assertTrue(rbt.has_value(("beta", None)))
+        self.assertEqual(rbt.get(("alpha", None)), ("alpha", 2))
+        self.assertEqual(rbt.get(("beta", None)), ("beta", 3))
 
-        rbt.to_root()
-        rbt.go_right_child()
-        rbt.new_node("c", Node.Color.RED)
-        self.assertEqual(rbt.get_new_node_status(), RedBlackTree.NewNodeStatus.OK)
-        self.assertEqual(rbt.get_size(), 3)
-        self.assertFalse(rbt.node_is_empty())
-
-
-    def test_get_node_key(self):
-        rbt = RedBlackTree()
-        self.assertEqual(rbt.get_get_node_key_status(), RedBlackTree.GetNodeKeyStatus.NIL)
-        rbt.get_node_key()
-        self.assertEqual(rbt.get_get_node_key_status(), RedBlackTree.GetNodeKeyStatus.EMPTY_NODE)
-
-    def test_get_node_value(self):
-        rbt = RedBlackTree()
-        self.assertEqual(rbt.get_get_node_value_status(), RedBlackTree.GetNodeValueStatus.NIL)
-        rbt.get_node_value()
-        self.assertEqual(rbt.get_get_node_value_status(), RedBlackTree.GetNodeValueStatus.EMPTY_NODE)
-"""
 
 if __name__ == "__main__":
     unittest.main()
