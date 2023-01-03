@@ -62,6 +62,16 @@ class Node:
         return self.__right_child
 
 
+def _replace_child(old: Node, new: Node):
+    parent = old.get_parent()
+    assert(parent is not None)
+    if parent.get_left_child() is old:
+        parent.set_left_child(new)
+    else:
+        parent.set_right_child(new)
+    new.set_parent(parent)
+
+
 class BinaryTree:
 
     __root: Optional[Node]
@@ -79,6 +89,7 @@ class BinaryTree:
         self.__add_child_status = self.AddChildStatus.NIL
         self.__go_status = self.GoStatus.NIL
         self.__get_node_value_status = self.GetNodeValueStatus.NIL
+        self.__rotate_status = self.RotateStatus.NIL
 
 
     # КОМАНДЫ
@@ -97,9 +108,9 @@ class BinaryTree:
         self.__add_root_status = self.AddRootStatus.OK
 
     class AddRootStatus(Enum):
-        NIL = auto(),
-        OK = auto(),
-        ALREADY_EXISTS = auto(),
+        NIL = auto(),            # команда не выполнялась
+        OK = auto(),             # успех
+        ALREADY_EXISTS = auto(), # корень уже существует
 
     __add_root_status: AddRootStatus
 
@@ -142,10 +153,10 @@ class BinaryTree:
         self.__size += 1
 
     class AddChildStatus(Enum):
-        NIL = auto(),
-        OK = auto(),
-        EMPTY_TREE = auto(),
-        ALREADY_EXISTS = auto(),
+        NIL = auto(),            # команда не выполнялась
+        OK = auto(),             # успех
+        EMPTY_TREE = auto(),     # дерево пусто
+        ALREADY_EXISTS = auto(), # потомок уже существует
 
     __add_child_status: AddChildStatus
 
@@ -197,8 +208,8 @@ class BinaryTree:
         self.__go(self.__current.get_right_child())
 
     class GoStatus(Enum):
-        NIL = auto(),    # команда не выполнялась
-        OK = auto(),     # успех
+        NIL = auto(),       # команда не выполнялась
+        OK = auto(),        # успех
         NO_TARGET = auto(), # нет узла в заданном направлении
 
     __go_status: GoStatus
@@ -206,6 +217,81 @@ class BinaryTree:
     def get_go_status(self) -> GoStatus:
         return self.__go_status
 
+
+    # повернуть дерево вправо на текущем узле
+    # предусловие: дерево не пусто
+    # предусловие: у текущего узла есть левый потомок
+    # постусловие: левый потомок занял место текущего узла
+    #              текущий узел стал правым потомком своего левого потомка
+    #              правый потомок левого потомка текущего узла стал левым потомком текущего узла
+    def rotate_right(self) -> None:
+        if self.get_size() == 0:
+            self.__rotate_status = self.RotateStatus.EMPTY_TREE
+            return
+        assert(self.__current is not None)
+        if self.__current.get_left_child() is None:
+            self.__rotate_status = self.RotateStatus.NO_PROPER_CHILD
+            return
+        top = self.__current
+        assert(top is not None)
+        left = top.get_left_child()
+        assert(left is not None)
+        right_of_left = left.get_right_child()
+        self.__current = left
+        if top is self.__root:
+            left.set_parent(None)
+            self.__root = left
+        else:
+            _replace_child(top, left)
+        left.set_right_child(top)
+        top.set_parent(left)
+        top.set_left_child(right_of_left)
+        if right_of_left is not None:
+            right_of_left.set_parent(top)
+        self.__rotate_status = self.RotateStatus.OK
+
+    # повернуть дерево влево на текущем узле
+    # предусловие: дерево не пусто
+    # предусловие: у текущего узла есть правый потомок
+    # постусловие: правый потомок занял место текущего узла
+    #              текущий узел стал левым потомком своего правого потомка
+    #              левый потомок правого потомка текущего узла стал правым потомком текущего узла
+    def rotate_left(self) -> None:
+        if self.get_size() == 0:
+            self.__rotate_status = self.RotateStatus.EMPTY_TREE
+            return
+        assert(self.__current is not None)
+        if self.__current.get_right_child() is None:
+            self.__rotate_status = self.RotateStatus.NO_PROPER_CHILD
+            return
+        top = self.__current
+        assert(top is not None)
+        right = top.get_right_child()
+        assert(right is not None)
+        left_of_right = right.get_left_child()
+        self.__current = right
+        if top is self.__root:
+            right.set_parent(None)
+            self.__root = right
+        else:
+            _replace_child(top, right)
+        right.set_left_child(top)
+        top.set_parent(right)
+        top.set_right_child(left_of_right)
+        if left_of_right is not None:
+            left_of_right.set_parent(top)
+        self.__rotate_status = self.RotateStatus.OK
+
+    class RotateStatus(Enum):
+        NIL = auto(),             # команда не выполнялась
+        OK = auto(),              # успех
+        EMPTY_TREE = auto(),      # дерево пусто
+        NO_PROPER_CHILD = auto(), # нет потомка чтобы заменить текущий узел
+
+    __rotate_status: RotateStatus
+
+    def get_rotate_status(self) -> RotateStatus:
+        return self.__rotate_status
 
 
     # ЗАПРОСЫ
