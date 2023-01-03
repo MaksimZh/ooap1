@@ -1,38 +1,32 @@
 import unittest
 
-from assoc_array import Node, RedBlackTree
+from assoc_array import Node
 
 
 class Test_Node(unittest.TestCase):
 
-    def test_init(self):
-        a = Node("a", 1, Node.Color.RED)
-        self.assertEqual(a.get_key(), "a")
+    def test_value(self):
+        a = Node("a")
+        b = Node("b")
+        self.assertEqual(a.get_value(), "a")
+        self.assertEqual(b.get_value(), "b")
+        a.set_value(1)
         self.assertEqual(a.get_value(), 1)
-        self.assertEqual(a.get_color(), Node.Color.RED)
+        self.assertEqual(b.get_value(), "b")
+
+    def test_links(self):
+        a = Node("a")
+        b = Node("b")
+        c = Node("c")
         self.assertIsNone(a.get_parent())
         self.assertIsNone(a.get_left_child())
         self.assertIsNone(a.get_right_child())
-        b = Node("b", 2, Node.Color.BLACK)
-        self.assertEqual(b.get_key(), "b")
-        self.assertEqual(b.get_value(), 2)
-        self.assertEqual(b.get_color(), Node.Color.BLACK)
         self.assertIsNone(b.get_parent())
         self.assertIsNone(b.get_left_child())
         self.assertIsNone(b.get_right_child())
-
-    def test_set_color(self):
-        a = Node("a", 1, Node.Color.RED)
-        self.assertEqual(a.get_color(), Node.Color.RED)
-        a.set_color(Node.Color.BLACK)
-        self.assertEqual(a.get_color(), Node.Color.BLACK)
-        a.set_color(Node.Color.RED)
-        self.assertEqual(a.get_color(), Node.Color.RED)
-
-    def test_set_links(self):
-        a = Node("a", 1, Node.Color.BLACK)
-        b = Node("b", 2, Node.Color.BLACK)
-        c = Node("c", 3, Node.Color.BLACK)
+        self.assertIsNone(c.get_parent())
+        self.assertIsNone(c.get_left_child())
+        self.assertIsNone(c.get_right_child())
         a.set_left_child(b)
         b.set_parent(a)
         a.set_right_child(c)
@@ -60,7 +54,7 @@ class Test_Node(unittest.TestCase):
         self.assertIsNone(c.get_left_child())
         self.assertIsNone(c.get_right_child())
 
-
+"""
 class Test_RedBlackTree(unittest.TestCase):
 
     def test_build(self):
@@ -124,7 +118,7 @@ class Test_RedBlackTree(unittest.TestCase):
         self.assertEqual(rbt.get_get_node_value_status(), RedBlackTree.GetNodeValueStatus.NIL)
         rbt.get_node_value()
         self.assertEqual(rbt.get_get_node_value_status(), RedBlackTree.GetNodeValueStatus.EMPTY_NODE)
-
+"""
 
 if __name__ == "__main__":
     unittest.main()

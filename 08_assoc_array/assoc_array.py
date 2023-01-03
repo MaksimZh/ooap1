@@ -3,26 +3,18 @@ from enum import Enum, auto
 
 
 class Node:
-
-    class Color(Enum):
-        RED = auto(),
-        BLACK = auto(),
     
-    __key: str
     __value: Any
-    __color: Color
     __parent: Optional["Node"]
     __left_child: Optional["Node"]
     __right_child: Optional["Node"]
 
 
     # КОНСТРУКТОР
-    # постусловие: создан новый узел с заданным ключом, значением и цветом
+    # постусловие: создан новый узел с заданным значением
     # постусловие: узел не связан ни с какими узлами
-    def __init__(self, key: str, value: Any, color: Color) -> None:
-        self.__key = key
+    def __init__(self, value: Any) -> None:
         self.__value = value
-        self.__color = color
         self.__parent = None
         self.__left_child = None
         self.__right_child = None
@@ -30,10 +22,10 @@ class Node:
 
     # КОМАНДЫ
 
-    # задать цвет узла
-    # постусловие: цвет узла равен заданному
-    def set_color(self, color: Color) -> None:
-        self.__color = color
+    # задать значение узла
+    # постусловие: значение узла равно заданному
+    def set_value(self, value: Any) -> None:
+        self.__value = value
 
     # задать родителя узла
     # постусловие: родитель равен заданному узлу
@@ -53,17 +45,9 @@ class Node:
 
     # ЗАПРОСЫ
     
-    # получить ключ узла
-    def get_key(self) -> str:
-        return self.__key
-
     # получить значение узла
     def get_value(self) -> Any:
         return self.__value
-
-    # получить цвет узла
-    def get_color(self) -> Any:
-        return self.__color
 
     # получить родителя узла
     def get_parent(self) -> Optional["Node"]:
@@ -77,7 +61,7 @@ class Node:
     def get_right_child(self) -> Optional["Node"]:
         return self.__right_child
 
-
+"""
 class _EmptyNode(Node):
     def __init__(self) -> None:
         super().__init__("", None, Node.Color.BLACK)
@@ -234,3 +218,4 @@ class RedBlackTree:
             return
         self.__cursor = target
         self.__go_status = self.GoStatus.OK
+"""
