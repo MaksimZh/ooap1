@@ -1,5 +1,5 @@
 import unittest
-from typing import Any
+from typing import Any, NamedTuple
 
 from assoc_array import Node, BinaryTree, RedBlackTree
 
@@ -330,34 +330,33 @@ class Test_BinaryTree(unittest.TestCase):
         self.check(bt, ["a", ["b", [], []], ["e", ["c", ["d", [], []], ["f", [], []]], ["g", [], []]]])
 
 
-def compare(x: Any, y: Any) -> RedBlackTree.CompareResult:
-    if x[0] > y[0]:
-        return RedBlackTree.CompareResult.GREATER
-    if x[0] < y[0]:
-        return RedBlackTree.CompareResult.LESS
-    return RedBlackTree.CompareResult.EQUAL
-
+class Val(NamedTuple):
+    a: str
 
 class Test_RedBlackTree(unittest.TestCase):
 
     def test_build(self):
-        rbt = RedBlackTree(compare)
+        rbt = RedBlackTree()
+        a = Val("a")
+        a1 = Val("a")
+        assert(a is not a1)
+        b = Val("b")
         self.assertEqual(rbt.get_size(), 0)
-        self.assertFalse(rbt.has_value(("alpha", None)))
-        rbt.put(("alpha", 1))
+        self.assertFalse(rbt.has_value(Val("a")))
+        rbt.put(a)
         self.assertEqual(rbt.get_size(), 1)
-        self.assertTrue(rbt.has_value(("alpha", None)))
-        self.assertEqual(rbt.get(("alpha", None)), ("alpha", 1))
-        rbt.put(("alpha", 2))
+        self.assertTrue(rbt.has_value(Val("a")))
+        self.assertIs(rbt.get(Val("a")), a)
+        rbt.put(a1)
         self.assertEqual(rbt.get_size(), 1)
-        self.assertTrue(rbt.has_value(("alpha", None)))
-        self.assertEqual(rbt.get(("alpha", None)), ("alpha", 2))
-        rbt.put(("beta", 3))
+        self.assertTrue(rbt.has_value(Val("a")))
+        self.assertIs(rbt.get(Val("a")), a1)
+        rbt.put(b)
         self.assertEqual(rbt.get_size(), 2)
-        self.assertTrue(rbt.has_value(("alpha", None)))
-        self.assertTrue(rbt.has_value(("beta", None)))
-        self.assertEqual(rbt.get(("alpha", None)), ("alpha", 2))
-        self.assertEqual(rbt.get(("beta", None)), ("beta", 3))
+        self.assertTrue(rbt.has_value(Val("a")))
+        self.assertTrue(rbt.has_value(Val("b")))
+        self.assertIs(rbt.get(Val("a")), a1)
+        self.assertIs(rbt.get(Val("b")), b)
 
 
 if __name__ == "__main__":

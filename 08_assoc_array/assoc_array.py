@@ -1,4 +1,4 @@
-from typing import Any, Optional, Callable, NamedTuple
+from typing import Any, Optional, NamedTuple
 from enum import Enum, auto
 
 
@@ -401,24 +401,15 @@ _leaf = _ColoredValue(None, False)
 
 class RedBlackTree:
 
-    class CompareResult(Enum):
-        EQUAL = auto(),
-        GREATER = auto(),
-        LESS = auto(),
-    
-    CompareFunc = Callable[[Any, Any], CompareResult]
-
     __size: int
     __tree: BinaryTree
-    __compare: CompareFunc
 
     # КОНСТРУКТОР
     # постусловие: создано дерево, состоящее из единственного пустого узла
-    def __init__(self, compare: CompareFunc) -> None:
+    def __init__(self) -> None:
         self.__size = 0
         self.__tree = BinaryTree()
         self.__tree.add_root(_leaf)
-        self.__compare = compare
 
 
     # КОМАНДЫ
@@ -426,6 +417,7 @@ class RedBlackTree:
     # добавить или заменить узел с заданным значением
     # постусловие: если равное значение присутствовало, то оно заменено новым
     #              если равное значение отсутствует, то новое значение добавлено
+    # постусловие: дерево соответствует требованиям красно-чёрного дерева
     def put(self, value: Any) -> None:
         self.__tree.go_root()
         self.__find(value)
@@ -440,6 +432,7 @@ class RedBlackTree:
     # удалить узел с заданным значением
     # предусловие: узел со значением равным заданному присутствует
     # постусловие: узел со значением равным заданному удалён
+    # постусловие: дерево соответствует требованиям красно-чёрного дерева
     def delete(self, value: Any) -> None:
         pass
 
@@ -487,19 +480,14 @@ class RedBlackTree:
         cv: _ColoredValue = self.__tree.get_node_value()
         if cv is _leaf:
             return
-        node_value = cv.value
-        compare_result = self.__compare(value, node_value)
-        match compare_result:
-            case self.CompareResult.EQUAL:
-                return
-            case self.CompareResult.GREATER:
-                self.__tree.go_right_child()
-                self.__find(value)
-                return
-            case self.CompareResult.LESS:
-                self.__tree.go_left_child()
-                self.__find(value)
-                return
+        if cv.value < value:
+            self.__tree.go_right_child()
+            self.__find(value)
+            return
+        if cv.value > value:
+            self.__tree.go_left_child()
+            self.__find(value)
+            return
 
     def __insert(self, value: Any) -> None:
         assert(self.__tree.get_node_value() is _leaf)
