@@ -100,9 +100,7 @@ class BinaryTree:
         self.__cursor = self.__Vacancy()
         _make_left_child(self.__root_parent, self.__cursor)
         self.__size = 0
-        self.__put_status = self.PutStatus.NIL
         self.__go_status = self.GoStatus.NIL
-        self.__set_node_value_status = self.SetNodeValueStatus.NIL
         self.__get_node_value_status = self.GetNodeValueStatus.NIL
         self.__delete_status = self.DeleteStatus.NIL
         self.__rotate_status = self.RotateStatus.NIL
@@ -110,12 +108,11 @@ class BinaryTree:
 
     # КОМАНДЫ
 
-    # создать в позиции курсора узел с заданным значением
-    # предусловие: курсор установлен на вакансию
-    # постусловие: в положении курсора создан узел с заданным значением
+    # задать значение текущему узлу
+    # постусловие: в положении курсора находится узел с заданным значением
     def put(self, value: Any) -> None:
         if self.is_on_node():
-            self.__put_status = self.PutStatus.ALREADY_EXISTS
+            self.__cursor.set_value(value)
             return
         node = Node(value)
         _replace_child(self.__cursor, node)
@@ -123,49 +120,26 @@ class BinaryTree:
         _make_right_child(node, self.__Vacancy())
         self.__cursor = node
         self.__size += 1
-        self.__put_status = self.PutStatus.OK
-
-    class PutStatus(Enum):
-        NIL = auto(),            # команда не выполнялась
-        OK = auto(),             # успех
-        ALREADY_EXISTS = auto(), # узел уже существует
-
-    __put_status: PutStatus
-
-    def get_put_status(self) -> PutStatus:
-        return self.__put_status
 
 
     # переместить курсор на корень дерева
-    # предусловие: дерево не пустое
     # постусловие: курсор перемещён в корень дерева
-    def go_root(self) -> None:
-        if self.get_size() == 0:
-            self.__go_status = self.GoStatus.NO_TARGET
-            return
-        self.__go(self.__root_parent.get_left_child())
+    def to_root(self) -> None:
+        root = self.__root_parent.get_left_child()
+        assert(root is not None)
+        self.__cursor = root
 
     # переместить курсор к родителю текущего узла
-    # предусловие: дерево не пустое
     # предусловие: у текущего узла есть родитель
     # постусловие: курсор перемещён к родителю текущего узла
     def go_parent(self) -> None:
-        if self.get_size() == 0:
-            self.__go_status = self.GoStatus.NO_TARGET
-            return
-        assert(self.__cursor is not None)
         self.__go(self.__cursor.get_parent())
 
 
     # переместить курсор к левому потомку текущего узла
-    # предусловие: дерево не пустое
     # предусловие: у текущего узла есть левый потомок
     # постусловие: курсор перемещён к левому потомку текущего узла
     def go_left_child(self) -> None:
-        if self.get_size() == 0:
-            self.__go_status = self.GoStatus.NO_TARGET
-            return
-        assert(self.__cursor is not None)
         self.__go(self.__cursor.get_left_child())
 
     # переместить курсор к правому потомку текущего узла
@@ -173,10 +147,6 @@ class BinaryTree:
     # предусловие: у текущего узла есть правый потомок
     # постусловие: курсор перемещён к правому потомку текущего узла
     def go_right_child(self) -> None:
-        if self.get_size() == 0:
-            self.__go_status = self.GoStatus.NO_TARGET
-            return
-        assert(self.__cursor is not None)
         self.__go(self.__cursor.get_right_child())
 
     class GoStatus(Enum):
@@ -189,66 +159,37 @@ class BinaryTree:
     def get_go_status(self) -> GoStatus:
         return self.__go_status
 
-
-    # задать значение текущего узла
-    def set_node_value(self, value: Any) -> None:
-        if self.get_size() == 0:
-            self.__set_node_value_status = self.SetNodeValueStatus.EMPTY_TREE
-            return
-        self.__cursor.set_value(value)
-        self.__set_node_value_status = self.SetNodeValueStatus.OK
-
-    class SetNodeValueStatus(Enum):
-        NIL = auto(),
-        OK = auto(),
-        EMPTY_TREE = auto(),
-
-    __set_node_value_status: SetNodeValueStatus
-
-    def get_set_node_value_status(self) -> SetNodeValueStatus:
-        return self.__set_node_value_status
-    
     
     # удалить текущий узел
-    # предусловие: дерево не пустое
-    # постусловие: текущий узел удалён и заменён самым левым из его правых потомков
+    # предусловие: курсор не установлен на вакансию
+    # предусловие: хотя бы один из потомков текущего узла - вакансия
+    # постусловие: текущий узел удалён
     def delete(self) -> None:
-        if self.get_size() == 0:
-            self.__delete_status = self.DeleteStatus.EMPTY_TREE
+        if not self.is_on_node():
+            self.__delete_status = self.DeleteStatus.NOT_NODE
             return
-        assert(self.__cursor is not None)
-        if self.__cursor.get_right_child() is not None:
-            replacement = self.__cursor.get_right_child()
-            while True:
-                assert(replacement is not None)
-                if replacement.get_left_child() is None:
-                    break
-                replacement = replacement.get_left_child()
-            assert(replacement is not None)
-            self.__cursor.set_value(replacement.get_value())
-            stored_current = self.__cursor
-            self.__cursor = replacement
-            self.delete()
-            assert(self.get_delete_status() == self.DeleteStatus.OK)
-            self.__cursor = stored_current
-            self.__size += 1
-        else:
-            parent = self.__cursor.get_parent()
-            assert(parent is not None)
-            left = self.__cursor.get_left_child()
-            _replace_child(self.__cursor, left)
-            if left is not None:
-                self.__cursor = left
-            else:
-                self.__cursor = parent
-
-        self.__size -= 1
-        self.__delete_status = self.DeleteStatus.OK
+        node = self.__cursor
+        left = self.__cursor.get_left_child()
+        right = self.__cursor.get_right_child()
+        if isinstance(right, self.__Vacancy):
+            _replace_child(right, None)
+            _replace_child(node, left)
+            self.__size -= 1
+            self.__delete_status = self.DeleteStatus.OK
+            return
+        if isinstance(left, self.__Vacancy):
+            _replace_child(left, None)
+            _replace_child(node, right)
+            self.__size -= 1
+            self.__delete_status = self.DeleteStatus.OK
+            return
+        self.__delete_status = self.DeleteStatus.TWO_CHILDREN
 
     class DeleteStatus(Enum):
-        NIL = auto(),        # команда не выполнялась
-        OK = auto(),         # успех
-        EMPTY_TREE = auto(), # дерево пусто
+        NIL = auto(),          # команда не выполнялась
+        OK = auto(),           # успех
+        NOT_NODE = auto(),     # курсор на вакансии
+        TWO_CHILDREN = auto(), # у узла два потомка
 
     __delete_status: DeleteStatus
 
@@ -362,7 +303,7 @@ class BinaryTree:
     # предусловие: дерево не пусто
     def get_node_value(self) -> Any:
         if self.get_size() == 0:
-            self.__get_node_value_status = self.GetNodeValueStatus.EMPTY_TREE
+            self.__get_node_value_status = self.GetNodeValueStatus.NOT_NODE
             return
         assert(self.__cursor is not None)
         self.__get_node_value_status = self.GetNodeValueStatus.OK
@@ -371,7 +312,7 @@ class BinaryTree:
     class GetNodeValueStatus(Enum):
         NIL = auto(),
         OK = auto(),
-        EMPTY_TREE = auto(),
+        NOT_NODE = auto(),
 
     __get_node_value_status: GetNodeValueStatus
 
