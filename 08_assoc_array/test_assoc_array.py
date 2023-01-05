@@ -1,7 +1,7 @@
 import unittest
 from typing import Any, NamedTuple
 
-from assoc_array import Node, BinaryTree, RedBlackTree, AssocArray
+from assoc_array import Node, BinaryTree, RedBlackTree, NativeDictionary
 
 
 class Test_Node(unittest.TestCase):
@@ -527,16 +527,16 @@ class Test_RedBlackTree(unittest.TestCase):
         self.assertEqual(rbt.get_size(), 5)
 
 
-class Test_AssocArray(unittest.TestCase):
+class Test_NativeDictionary(unittest.TestCase):
 
-    def check(self, a: AssocArray, pattern: dict[str, Any]):
+    def check(self, a: NativeDictionary, pattern: dict[str, Any]):
         self.assertEqual(a.get_size(), len(pattern))
         for key, value in pattern.items():
             self.assertTrue(a.has_key(key))
             self.assertEqual(a.get(key), value)
 
     def test_put(self):
-        a = AssocArray()
+        a = NativeDictionary()
         self.check(a, dict())
         a.put("a", 0)
         self.check(a, {"a": 0})
@@ -546,30 +546,30 @@ class Test_AssocArray(unittest.TestCase):
         self.check(a, {"a": 1, "b": 2})
 
     def test_get(self):
-        a = AssocArray()
-        self.assertEqual(a.get_get_status(), AssocArray.GetStatus.NIL)
+        a = NativeDictionary()
+        self.assertEqual(a.get_get_status(), NativeDictionary.GetStatus.NIL)
         a.put("a", 1)
         a.put("b", 2)
         a.put("c", 3)
         self.assertEqual(a.get("b"), 2)
-        self.assertEqual(a.get_get_status(), AssocArray.GetStatus.OK)
+        self.assertEqual(a.get_get_status(), NativeDictionary.GetStatus.OK)
         a.get("foo")
-        self.assertEqual(a.get_get_status(), AssocArray.GetStatus.NOT_FOUND)
+        self.assertEqual(a.get_get_status(), NativeDictionary.GetStatus.NOT_FOUND)
 
     def test_delete(self):
-        a = AssocArray()
-        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.NIL)
+        a = NativeDictionary()
+        self.assertEqual(a.get_delete_status(), NativeDictionary.DeleteStatus.NIL)
         a.put("a", 1)
         a.put("b", 2)
         a.put("c", 3)
         self.check(a, {"a": 1, "b": 2, "c": 3})
         a.delete("b")
-        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.OK)
+        self.assertEqual(a.get_delete_status(), NativeDictionary.DeleteStatus.OK)
         self.check(a, {"a": 1, "c": 3})
         a.delete("foo")
-        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.NOT_FOUND)
+        self.assertEqual(a.get_delete_status(), NativeDictionary.DeleteStatus.NOT_FOUND)
         a.delete("b")
-        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.NOT_FOUND)
+        self.assertEqual(a.get_delete_status(), NativeDictionary.DeleteStatus.NOT_FOUND)
 
 
 if __name__ == "__main__":

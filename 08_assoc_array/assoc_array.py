@@ -673,7 +673,7 @@ class Item:
         return self.key > o.key
 
     
-class AssocArray:
+class NativeDictionary:
 
     __tree: RedBlackTree
 
