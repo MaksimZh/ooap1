@@ -1,7 +1,7 @@
 import unittest
-from typing import Any#, NamedTuple
+from typing import Any, NamedTuple
 
-from assoc_array import Node, BinaryTree#, RedBlackTree
+from assoc_array import Node, BinaryTree, RedBlackTree, AssocArray
 
 
 class Test_Node(unittest.TestCase):
@@ -230,6 +230,7 @@ class Test_BinaryTree(unittest.TestCase):
         self.check(bt, ["a"])
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertFalse(bt.is_on_node())
         self.check(bt, [])
 
         self.make(bt, ["a", ["b", ["d"], ["e"]], ["c", ["f"], ["g"]]])
@@ -254,12 +255,15 @@ class Test_BinaryTree(unittest.TestCase):
         bt.go_right_child()
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertFalse(bt.is_on_node())
         self.check(bt, ["a", ["b", ["d"], ["e"]], ["c", ["f"], []]])
 
         bt.to_root()
         bt.go_right_child()
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertTrue(bt.is_on_node())
+        self.assertEqual(bt.get_node_value(), "f")
         self.check(bt, ["a", ["b", ["d"], ["e"]], ["f"]])
 
         bt.to_root()
@@ -267,28 +271,35 @@ class Test_BinaryTree(unittest.TestCase):
         bt.go_left_child()
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertFalse(bt.is_on_node())
         self.check(bt, ["a", ["b", [], ["e"]], ["f"]])
 
         bt.to_root()
         bt.go_left_child()
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertTrue(bt.is_on_node())
+        self.assertEqual(bt.get_node_value(), "e")
         self.check(bt, ["a", ["e"], ["f"]])
 
         bt.to_root()
         bt.go_left_child()
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertFalse(bt.is_on_node())
         self.check(bt, ["a", [], ["f"]])
 
         bt.to_root()
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
         self.check(bt, ["f"])
+        self.assertTrue(bt.is_on_node())
+        self.assertEqual(bt.get_node_value(), "f")
 
         bt.to_root()
         bt.delete()
         self.assertEqual(bt.get_delete_status(), BinaryTree.DeleteStatus.OK)
+        self.assertFalse(bt.is_on_node())
         self.check(bt, [])
 
     
@@ -376,8 +387,33 @@ class Test_BinaryTree(unittest.TestCase):
         self.assertEqual(bt.get_node_value(), "c")
         self.check(bt, ["c", ["a", ["b", ["d"], ["e"]], ["f"]], ["g"]])
 
+    
+    def test_save(self):
+        bt = BinaryTree()
+        self.make(bt, ["a", ["b", ["d"], ["e"]], ["c", ["f"], ["g"]]])
+        bt.go_saved("s-c")
+        self.assertEqual(bt.get_go_status(), BinaryTree.GoStatus.NO_TARGET)
+        bt.to_root()
+        bt.go_left_child()
+        bt.go_right_child()
+        bt.save_cursor("s-e")
+        bt.to_root()
+        bt.go_right_child()
+        bt.go_left_child()
+        bt.save_cursor("s-f")
+        bt.to_root()
+        bt.go_saved("s-e")
+        self.assertEqual(bt.get_go_status(), BinaryTree.GoStatus.OK)
+        self.assertEqual(bt.get_node_value(), "e")
+        bt.go_saved("s-f")
+        self.assertEqual(bt.get_go_status(), BinaryTree.GoStatus.OK)
+        self.assertEqual(bt.get_node_value(), "f")
+        bt.delete()
+        bt.to_root()
+        bt.go_saved("s-f")
+        self.assertEqual(bt.get_go_status(), BinaryTree.GoStatus.NO_TARGET)
 
-"""
+
 class Val(NamedTuple):
     a: str
 
@@ -431,6 +467,16 @@ class Test_RedBlackTree(unittest.TestCase):
         self.assertEqual(rbt.get("f"), "f")
         self.assertEqual(rbt.get("g"), "g")
 
+    def test_put_2(self):
+        rbt = RedBlackTree()
+        rbt.put("a")
+        rbt.put("b")
+        rbt.put("c")
+        rbt.put("d")
+        rbt.put("e")
+        rbt.put("f")
+        rbt.put("g")
+
     def test_get(self):
         rbt = RedBlackTree()
         self.assertEqual(rbt.get_get_status(), RedBlackTree.GetStatus.NIL)
@@ -442,6 +488,9 @@ class Test_RedBlackTree(unittest.TestCase):
 
     def test_delete(self):
         rbt = RedBlackTree()
+        self.assertEqual(rbt.get_delete_status(), RedBlackTree.DeleteStatus.NIL)
+        rbt.delete("a")
+        self.assertEqual(rbt.get_delete_status(), RedBlackTree.DeleteStatus.NOT_FOUND)
         rbt.put("d")
         rbt.put("b")
         rbt.put("f")
@@ -451,8 +500,77 @@ class Test_RedBlackTree(unittest.TestCase):
         rbt.put("g")
         self.assertEqual(rbt.get_size(), 7)
         rbt.delete("a")
+        self.assertEqual(rbt.get_delete_status(), RedBlackTree.DeleteStatus.OK)
+        self.assertFalse(rbt.has_value("a"))
         self.assertEqual(rbt.get_size(), 6)
-"""
+        rbt.delete("b")
+        self.assertEqual(rbt.get_delete_status(), RedBlackTree.DeleteStatus.OK)
+        self.assertFalse(rbt.has_value("b"))
+        self.assertEqual(rbt.get_size(), 5)
+        rbt.delete("f")
+        self.assertEqual(rbt.get_delete_status(), RedBlackTree.DeleteStatus.OK)
+        self.assertFalse(rbt.has_value("f"))
+        self.assertEqual(rbt.get_size(), 4)
+
+    def test_delete_2(self):
+        rbt = RedBlackTree()
+        rbt.put("a")
+        rbt.put("b")
+        rbt.put("c")
+        rbt.put("d")
+        rbt.put("e")
+        rbt.put("f")
+        self.assertEqual(rbt.get_size(), 6)
+        rbt.delete("d")
+        self.assertEqual(rbt.get_delete_status(), RedBlackTree.DeleteStatus.OK)
+        self.assertFalse(rbt.has_value("d"))
+        self.assertEqual(rbt.get_size(), 5)
+
+
+class Test_AssocArray(unittest.TestCase):
+
+    def check(self, a: AssocArray, pattern: dict[str, Any]):
+        self.assertEqual(a.get_size(), len(pattern))
+        for key, value in pattern.items():
+            self.assertTrue(a.has_key(key))
+            self.assertEqual(a.get(key), value)
+
+    def test_put(self):
+        a = AssocArray()
+        self.check(a, dict())
+        a.put("a", 0)
+        self.check(a, {"a": 0})
+        a.put("a", 1)
+        self.check(a, {"a": 1})
+        a.put("b", 2)
+        self.check(a, {"a": 1, "b": 2})
+
+    def test_get(self):
+        a = AssocArray()
+        self.assertEqual(a.get_get_status(), AssocArray.GetStatus.NIL)
+        a.put("a", 1)
+        a.put("b", 2)
+        a.put("c", 3)
+        self.assertEqual(a.get("b"), 2)
+        self.assertEqual(a.get_get_status(), AssocArray.GetStatus.OK)
+        a.get("foo")
+        self.assertEqual(a.get_get_status(), AssocArray.GetStatus.NOT_FOUND)
+
+    def test_delete(self):
+        a = AssocArray()
+        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.NIL)
+        a.put("a", 1)
+        a.put("b", 2)
+        a.put("c", 3)
+        self.check(a, {"a": 1, "b": 2, "c": 3})
+        a.delete("b")
+        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.OK)
+        self.check(a, {"a": 1, "c": 3})
+        a.delete("foo")
+        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.NOT_FOUND)
+        a.delete("b")
+        self.assertEqual(a.get_delete_status(), AssocArray.DeleteStatus.NOT_FOUND)
+
 
 if __name__ == "__main__":
     unittest.main()

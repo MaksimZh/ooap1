@@ -1,4 +1,4 @@
-from typing import Any, Optional#, NamedTuple
+from typing import Any, Optional, NamedTuple
 from enum import Enum, auto
 
 
@@ -91,6 +91,7 @@ class BinaryTree:
     __root_parent: Node
     __cursor: Node
     __size: int
+    __saved_cursors: dict[str, Node]
 
 
     # КОНСТРУКТОР
@@ -100,6 +101,7 @@ class BinaryTree:
         self.__cursor = self.__Vacancy()
         _make_left_child(self.__root_parent, self.__cursor)
         self.__size = 0
+        self.__saved_cursors = dict()
         self.__go_status = self.GoStatus.NIL
         self.__get_node_value_status = self.GetNodeValueStatus.NIL
         self.__delete_status = self.DeleteStatus.NIL
@@ -164,6 +166,7 @@ class BinaryTree:
     # предусловие: курсор не установлен на вакансию
     # предусловие: хотя бы один из потомков текущего узла - вакансия
     # постусловие: текущий узел удалён
+    # постусловие: курсор сохраняет положение относительно вышестоящих узлов
     def delete(self) -> None:
         if not self.is_on_node():
             self.__delete_status = self.DeleteStatus.NOT_NODE
@@ -174,12 +177,18 @@ class BinaryTree:
         if isinstance(right, self.__Vacancy):
             _replace_child(right, None)
             _replace_child(node, left)
+            self.__forget_this_cursor()
+            assert(left is not None)
+            self.__cursor = left
             self.__size -= 1
             self.__delete_status = self.DeleteStatus.OK
             return
         if isinstance(left, self.__Vacancy):
             _replace_child(left, None)
             _replace_child(node, right)
+            self.__forget_this_cursor()
+            assert(right is not None)
+            self.__cursor = right
             self.__size -= 1
             self.__delete_status = self.DeleteStatus.OK
             return
@@ -263,6 +272,22 @@ class BinaryTree:
         return self.__rotate_status
 
 
+    # сохранить положение курсора
+    # постусловие: положение курсора сохранено под заданным именем
+    def save_cursor(self, name: str) -> None:
+        self.__saved_cursors[name] = self.__cursor
+
+    # переместить курсор к сохранённому положению
+    # предусловие: узел сохранённого положения присутствует в дереве
+    # постусловие: курсор перемещён к сохранённому положению
+    def go_saved(self, name: str) -> None:
+        if name not in self.__saved_cursors:
+            self.__go_status = self.GoStatus.NO_TARGET
+            return
+        self.__cursor = self.__saved_cursors[name]
+        self.__go_status = self.GoStatus.OK
+
+
     # ЗАПРОСЫ
 
     # получить количество узлов
@@ -325,26 +350,28 @@ class BinaryTree:
         self.__cursor = target
         self.__go_status = self.GoStatus.OK
 
-"""
+    def __forget_this_cursor(self) -> None:
+        if self.__cursor in self.__saved_cursors.values():
+            index = list(self.__saved_cursors.values()).index(self.__cursor)
+            name = list(self.__saved_cursors.keys())[index]
+            del self.__saved_cursors[name]
+
+
 class _ColoredValue(NamedTuple):
     value: Any
     is_red: bool
 
-_leaf = _ColoredValue(None, False)
-
 
 class RedBlackTree:
 
-    __size: int
     __tree: BinaryTree
 
     # КОНСТРУКТОР
     # постусловие: создано дерево, состоящее из единственного пустого узла
     def __init__(self) -> None:
-        self.__size = 0
         self.__tree = BinaryTree()
-        self.__tree.add_root(_leaf)
         self.__get_status = self.GetStatus.NIL
+        self.__delete_status = self.DeleteStatus.NIL
 
 
     # КОМАНДЫ
@@ -354,14 +381,13 @@ class RedBlackTree:
     #              если равное значение отсутствует, то новое значение добавлено
     # постусловие: дерево соответствует требованиям красно-чёрного дерева
     def put(self, value: Any) -> None:
-        self.__tree.go_root()
+        self.__tree.to_root()
         self.__find(value)
-        cv: _ColoredValue = self.__tree.get_node_value()
-        if cv is _leaf:
-            self.__insert(value)
-            self.__size += 1
-        else:
-            self.__tree.set_node_value(_ColoredValue(value, cv.is_red))
+        if self.__tree.is_on_node():
+            cv = self.__tree.get_node_value()
+            self.__tree.put(_ColoredValue(value, cv.is_red))
+            return
+        self.__insert(value)
         if __debug__:
             self.__check_tree()
 
@@ -371,13 +397,13 @@ class RedBlackTree:
     # постусловие: узел со значением равным заданному удалён
     # постусловие: дерево соответствует требованиям красно-чёрного дерева
     def delete(self, value: Any) -> None:
-        self.__tree.go_root()
+        self.__tree.to_root()
         self.__find(value)
-        if self.__is_node_red():
-            self.__tree.delete()
-            self.__size -= 1
+        if not self.__tree.is_on_node():
+            self.__delete_status = self.DeleteStatus.NOT_FOUND
             return
-        self.__size -= 1
+        self.__delete()
+        self.__delete_status = self.DeleteStatus.OK
         if __debug__:
             self.__check_tree()
 
@@ -396,20 +422,20 @@ class RedBlackTree:
 
     # получить количество непустых узлов
     def get_size(self) -> int:
-        return self.__size
+        return self.__tree.get_size()
 
     # проверить присутствует ли значение в дереве
     def has_value(self, value: Any) -> bool:
-        self.__tree.go_root()
+        self.__tree.to_root()
         self.__find(value)
-        return self.__tree.get_node_value() is not _leaf
+        return self.__tree.is_on_node()
 
-    # получить ключ текущего узла
+    # получить значение узла со значением равным заданному
     # предусловие: узел со значением равным заданному присутствует
     def get(self, value: Any) -> Any:
-        self.__tree.go_root()
+        self.__tree.to_root()
         self.__find(value)
-        if self.__tree.get_node_value() is _leaf:
+        if not self.__tree.is_on_node():
             self.__get_status = self.GetStatus.NOT_FOUND
             return None
         self.__get_status = self.GetStatus.OK
@@ -426,9 +452,9 @@ class RedBlackTree:
         return self.__get_status
 
     def __find(self, value: Any) -> None:
-        cv: _ColoredValue = self.__tree.get_node_value()
-        if cv is _leaf:
+        if not self.__tree.is_on_node():
             return
+        cv: _ColoredValue = self.__tree.get_node_value()
         if cv.value < value:
             self.__tree.go_right_child()
             self.__find(value)
@@ -439,35 +465,138 @@ class RedBlackTree:
             return
 
     def __insert(self, value: Any) -> None:
-        assert(self.__tree.get_node_value() is _leaf)
-        self.__tree.add_left_child(_ColoredValue(value, True))
-        self.__tree.go_left_child()
-        self.__tree.add_left_child(_leaf)
-        self.__tree.go_parent()
-        self.__tree.rotate_right()
+        assert(not self.__tree.is_on_node())
+        self.__tree.put(_ColoredValue(value, True))
         self.__rebalance_red()
 
-    def __rebalance_red(self) -> None:
-        self.__tree.go_parent()
-        if self.__tree.get_go_status() == BinaryTree.GoStatus.NO_TARGET:
-            self.__set_node_black()
+    def __delete(self) -> None:
+        if self.__node_has_two_children():
+            self.__tree.save_cursor("node")
+            self.__find_replacement()
+            self.__tree.save_cursor("replacement")
+            value = self.__tree.get_node_value().value
+            self.__tree.go_saved("node")
+            is_red = self.__tree.get_node_value().is_red
+            self.__tree.put(_ColoredValue(value, is_red))
+            self.__tree.go_saved("replacement")
+            self.__delete()
             return
+        if self.__is_node_red():
+            self.__tree.delete()
+            return
+        self.__tree.delete()
+        if self.__is_node_red():
+            self.__set_node_red(False)
+            return
+        self.__rebalance_double_black()
+
+    def __node_has_two_children(self) -> bool:
+        self.__tree.go_left_child()
+        if not self.__tree.is_on_node():
+            self.__tree.go_parent()
+            return False
+        self.__tree.go_parent()
+        self.__tree.go_right_child()
+        if not self.__tree.is_on_node():
+            self.__tree.go_parent()
+            return False
+        self.__tree.go_parent()
+        return True
+
+    def __find_replacement(self) -> None:
+        self.__tree.go_right_child()
+        self.__tree.go_left_child()
+        while self.__tree.is_on_node():
+            self.__tree.go_left_child()
+        self.__tree.go_parent()
+
+
+    def __rebalance_red(self) -> None:
+        if self.__tree.is_on_root():
+            self.__set_node_red(False)
+            return
+        self.__tree.go_parent()
         if not self.__is_node_red():
             return
-        assert(not self.__tree.is_on_root())
-        if self.__is_uncle_red():
-            self.__set_node_black()
+        if self.__is_brother_red():
+            self.__set_node_red(False)
             self.__go_brother()
-            self.__set_node_black()
+            self.__set_node_red(False)
             self.__tree.go_parent()
-            self.__set_node_red()
+            self.__set_node_red(True)
             self.__rebalance_red()
             return
+        if self.__tree.is_on_left_child():
+            self.__rebalance_red_left()
+            return
+        self.__rebalance_red_right()
+
+    def __rebalance_red_left(self) -> None:
+        self.__set_node_red(False)
+        self.__tree.go_parent()
+        self.__set_node_red(True)
+        self.__tree.rotate_right()
+
+    def __rebalance_red_right(self) -> None:
+        self.__set_node_red(False)
+        self.__tree.go_parent()
+        self.__set_node_red(True)
+        self.__tree.rotate_left()
+
+    def __rebalance_double_black(self) -> None:
+        if self.__tree.is_on_root():
+            return
+        if self.__is_brother_red():
+            self.__rebalace_db_red_brother()
+            return
+        if self.__tree.is_on_left_child():
+            self.__rebalace_db_black_brother_left()
+
+    def __rebalace_db_red_brother(self) -> None:
+        if self.__tree.is_on_left_child():
+            self.__tree.go_parent()
+            self.__set_node_red(True)
+            self.__tree.go_right_child()
+            self.__set_node_red(False)
+            self.__tree.go_parent()
+            self.__tree.rotate_left()
+            return
+        self.__tree.go_parent()
+        self.__set_node_red(True)
+        self.__tree.go_left_child()
+        self.__set_node_red(False)
         self.__tree.go_parent()
         self.__tree.rotate_right()
 
+    def __rebalace_db_black_brother_left(self) -> None:
+        self.__tree.go_parent()
+        self.__tree.go_right_child()
+        self.__tree.go_right_child()
+        if self.__is_node_red():
+            self.__tree.go_parent()
+            self.__tree.go_parent()
+            is_red_parent = self.__is_node_red()
+            self.__set_node_red(False)
+            self.__tree.rotate_left()
+            self.__set_node_red(is_red_parent)
+            return
+        self.__tree.go_parent()
+        self.__tree.go_left_child()
+        if self.__is_node_red():
+            self.__set_node_red(False)
+            self.__tree.go_parent()
+            self.__set_node_red(True)
+            self.__tree.rotate_right()
+            return
+        self.__tree.go_parent()
+        self.__set_node_red(True)
+        self.__tree.go_parent()
+        self.__set_node_red(False)
+        self.__rebalance_double_black()
+
+
     def __is_node_red(self) -> bool:
-        return self.__tree.get_node_value().is_red
+        return self.__tree.is_on_node() and self.__tree.get_node_value().is_red
 
     def __go_brother(self) -> None:
         if self.__tree.is_on_left_child():
@@ -477,39 +606,25 @@ class RedBlackTree:
         self.__tree.go_parent()
         self.__tree.go_left_child()
 
-    def __set_node_black(self) -> None:
+    def __set_node_red(self, is_red: bool) -> None:
         cv = self.__tree.get_node_value()
-        self.__tree.set_node_value(_ColoredValue(cv.value, False))
+        self.__tree.put(_ColoredValue(cv.value, is_red))
 
-    def __set_node_red(self) -> None:
-        cv = self.__tree.get_node_value()
-        self.__tree.set_node_value(_ColoredValue(cv.value, True))
-
-    def __is_uncle_red(self) -> bool:
-        assert(not self.__tree.is_on_root())
-        if self.__tree.is_on_left_child():
-            self.__tree.go_parent()
-            self.__tree.go_right_child()
-            is_red = self.__is_node_red()
-            self.__tree.go_parent()
-            self.__tree.go_left_child()
-            return is_red
-        self.__tree.go_parent()
-        self.__tree.go_left_child()
+    def __is_brother_red(self) -> bool:
+        self.__go_brother()
         is_red = self.__is_node_red()
-        self.__tree.go_parent()
-        self.__tree.go_right_child()
+        self.__go_brother()
         return is_red
 
 
     def __check_tree(self) -> None:
-        self.__tree.go_root()
+        self.__tree.to_root()
         leaf_black_depth: list[Optional[int]] = [None]
         self.__check_black(0, leaf_black_depth)
 
     def __check_black(self, black_depth: int, leaf_black_depth: list[Optional[int]]) -> None:
-        assert(not self.__tree.get_node_value().is_red)
-        if self.__tree.get_node_value() is _leaf:
+        assert(not self.__is_node_red())
+        if not self.__tree.is_on_node():
             self.__check_leaf(black_depth + 1, leaf_black_depth)
             return
         self.__tree.go_left_child()
@@ -520,7 +635,7 @@ class RedBlackTree:
         self.__tree.go_parent()
     
     def __check_red(self, black_depth: int, leaf_black_depth: list[Optional[int]]) -> None:
-        assert(self.__tree.get_node_value().is_red)
+        assert(self.__is_node_red())
         self.__tree.go_left_child()
         self.__check_black(black_depth, leaf_black_depth)
         self.__tree.go_parent()
@@ -529,7 +644,7 @@ class RedBlackTree:
         self.__tree.go_parent()
 
     def __check_node(self, black_depth: int, leaf_black_depth: list[Optional[int]]) -> None:
-        if self.__tree.get_node_value().is_red:
+        if self.__is_node_red():
             self.__check_red(black_depth, leaf_black_depth)
             return
         self.__check_black(black_depth, leaf_black_depth)
@@ -539,4 +654,94 @@ class RedBlackTree:
             leaf_black_depth[0] = black_depth
             return
         assert(black_depth == leaf_black_depth[0])
-"""
+
+
+class Item:
+    key: str
+    value: Any
+
+    def __init__(self, key: str, value: Any) -> None:
+        self.key = key
+        self.value = value
+    
+    def __eq__(self, o: object) -> bool:
+        assert(isinstance(o, Item))
+        return self.key == o.key
+
+    def __gt__(self, o: object) -> bool:
+        assert(isinstance(o, Item))
+        return self.key > o.key
+
+    
+class AssocArray:
+
+    __tree: RedBlackTree
+
+    
+    # КОНСТРУКТОР
+    # постусловие: создан пустой ассоциативный массив
+    def __init__(self) -> None:
+        self.__tree = RedBlackTree()
+        self.__get_status = self.GetStatus.NIL
+        self.__delete_status = self.DeleteStatus.NIL
+    
+    
+    # КОМАНДЫ
+
+    # записать значение в массив под заданным ключом
+    # постусловие: если ключ уже есть в массиве - записать под ним заданное значение
+    #              иначе добавить пару ключ-значение в массив 
+    def put(self, key: str, value: Any) -> None:
+        self.__tree.put(Item(key, value))
+
+
+    # удалить элемент с заданным ключом из массива
+    # предусловие: ключ содержится в массиве
+    # постусловие: из массива удалён элемент с заданным ключом
+    def delete(self, key: str) -> None:
+        self.__tree.delete(Item(key, None))
+        if self.__tree.get_delete_status() == RedBlackTree.DeleteStatus.NOT_FOUND:
+            self.__delete_status = self.DeleteStatus.NOT_FOUND
+            return
+        self.__delete_status = self.DeleteStatus.OK
+
+    class DeleteStatus(Enum):
+        NIL = auto(),       # команда не выполнялась
+        OK = auto(),        # успех
+        NOT_FOUND = auto(), # ключ не найден
+
+    __delete_status: DeleteStatus
+
+    def get_delete_status(self) -> DeleteStatus:
+        return self.__delete_status
+
+    
+    # ЗАПРОСЫ
+
+    # получить количество записей в массиве
+    def get_size(self) -> int:
+        return self.__tree.get_size()
+
+    # проверить содержится ли ключ в массиве
+    def has_key(self, key: str) -> bool:
+        return self.__tree.has_value(Item(key, None))
+
+    # получить значение по заданному ключу
+    # предусловие: ключ содержится в массиве
+    def get(self, key: str) -> Any:
+        item = self.__tree.get(Item(key, None))
+        if self.__tree.get_get_status() == RedBlackTree.GetStatus.NOT_FOUND:
+            self.__get_status = self.GetStatus.NOT_FOUND
+            return None
+        self.__get_status = self.GetStatus.OK
+        return item.value
+
+    class GetStatus(Enum):
+        NIL = auto(),       # запрос не выполнялся
+        OK = auto(),        # успех
+        NOT_FOUND = auto(), # ключ не найден
+
+    __get_status: GetStatus
+
+    def get_get_status(self) -> GetStatus:
+        return self.__get_status
