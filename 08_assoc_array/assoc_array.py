@@ -1,4 +1,4 @@
-from typing import Any, Optional, NamedTuple
+from typing import Any, Optional#, NamedTuple
 from enum import Enum, auto
 
 
@@ -61,33 +61,46 @@ class Node:
     def get_right_child(self) -> Optional["Node"]:
         return self.__right_child
 
+def _make_left_child(parent: Node, child: Optional[Node]):
+    parent.set_left_child(child)
+    if child is not None:
+        child.set_parent(parent)
+
+def _make_right_child(parent: Node, child: Optional[Node]):
+    parent.set_right_child(child)
+    if child is not None:
+        child.set_parent(parent)
 
 def _replace_child(old: Node, new: Optional[Node]):
     parent = old.get_parent()
     assert(parent is not None)
     if parent.get_left_child() is old:
-        parent.set_left_child(new)
+        _make_left_child(parent, new)
     else:
-        parent.set_right_child(new)
-    if new is not None:
-        new.set_parent(parent)
+        _make_right_child(parent, new)
 
 
 class BinaryTree:
 
+    class __Vacancy(Node):
+
+        def __init__(self) -> None:
+            super().__init__(None)
+
+
     __root_parent: Node
-    __current: Node
+    __cursor: Node
     __size: int
 
 
     # КОНСТРУКТОР
     # постусловие: создано пустое дерево
     def __init__(self) -> None:
-        self.__root_parent = Node(None)
-        self.__current = self.__root_parent
+        self.__root_parent = self.__Vacancy()
+        self.__cursor = self.__Vacancy()
+        _make_left_child(self.__root_parent, self.__cursor)
         self.__size = 0
-        self.__add_root_status = self.AddRootStatus.NIL
-        self.__add_child_status = self.AddChildStatus.NIL
+        self.__put_status = self.PutStatus.NIL
         self.__go_status = self.GoStatus.NIL
         self.__set_node_value_status = self.SetNodeValueStatus.NIL
         self.__get_node_value_status = self.GetNodeValueStatus.NIL
@@ -97,76 +110,30 @@ class BinaryTree:
 
     # КОМАНДЫ
 
-    # создать корень дерева с заданным значением
-    # предусловие: дерево пустое
-    # постусловие: дерево содержит один элемент с заданным значением
-    # постусловие: текущим элементом является корень
-    def add_root(self, value: Any) -> None:
-        if self.get_size() != 0:
-            self.__add_root_status = self.AddRootStatus.ALREADY_EXISTS
+    # создать в позиции курсора узел с заданным значением
+    # предусловие: курсор установлен на вакансию
+    # постусловие: в положении курсора создан узел с заданным значением
+    def put(self, value: Any) -> None:
+        if self.is_on_node():
+            self.__put_status = self.PutStatus.ALREADY_EXISTS
             return
         node = Node(value)
-        self.__root_parent.set_left_child(node)
-        node.set_parent(self.__root_parent)
-        self.__current = node
+        _replace_child(self.__cursor, node)
+        _make_left_child(node, self.__cursor)
+        _make_right_child(node, self.__Vacancy())
+        self.__cursor = node
         self.__size += 1
-        self.__add_root_status = self.AddRootStatus.OK
+        self.__put_status = self.PutStatus.OK
 
-    class AddRootStatus(Enum):
+    class PutStatus(Enum):
         NIL = auto(),            # команда не выполнялась
         OK = auto(),             # успех
-        ALREADY_EXISTS = auto(), # корень уже существует
+        ALREADY_EXISTS = auto(), # узел уже существует
 
-    __add_root_status: AddRootStatus
+    __put_status: PutStatus
 
-    def get_add_root_status(self) -> AddRootStatus:
-        return self.__add_root_status
-
-    
-    # создать левого потомка текущего элемента с заданным значением
-    # предусловие: дерево не пустое
-    # предусловие: текущий элемент не имеет левого потомка
-    # постусловие: в дерево добавлен левый потомок для текущего элемента с заданным значением
-    def add_left_child(self, value: Any) -> None:
-        if self.get_size() == 0:
-            self.__add_child_status = self.AddChildStatus.EMPTY_TREE
-            return
-        assert(self.__current is not None)
-        if self.__current.get_left_child() is not None:
-            self.__add_child_status = self.AddChildStatus.ALREADY_EXISTS
-            return
-        node = Node(value)
-        node.set_parent(self.__current)
-        self.__current.set_left_child(node)
-        self.__size += 1
-
-    # создать правого потомка текущего элемента с заданным значением
-    # предусловие: дерево не пустое
-    # предусловие: текущий элемент не имеет правого потомка
-    # постусловие: в дерево добавлен правый потомок для текущего элемента с заданным значением
-    def add_right_child(self, value: Any) -> None:
-        if self.get_size() == 0:
-            self.__add_child_status = self.AddChildStatus.EMPTY_TREE
-            return
-        assert(self.__current is not None)
-        if self.__current.get_right_child() is not None:
-            self.__add_child_status = self.AddChildStatus.ALREADY_EXISTS
-            return
-        node = Node(value)
-        node.set_parent(self.__current)
-        self.__current.set_right_child(node)
-        self.__size += 1
-
-    class AddChildStatus(Enum):
-        NIL = auto(),            # команда не выполнялась
-        OK = auto(),             # успех
-        EMPTY_TREE = auto(),     # дерево пусто
-        ALREADY_EXISTS = auto(), # потомок уже существует
-
-    __add_child_status: AddChildStatus
-
-    def get_add_child_status(self) -> AddChildStatus:
-        return self.__add_child_status
+    def get_put_status(self) -> PutStatus:
+        return self.__put_status
 
 
     # переместить курсор на корень дерева
@@ -186,8 +153,8 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__go_status = self.GoStatus.NO_TARGET
             return
-        assert(self.__current is not None)
-        self.__go(self.__current.get_parent())
+        assert(self.__cursor is not None)
+        self.__go(self.__cursor.get_parent())
 
 
     # переместить курсор к левому потомку текущего узла
@@ -198,8 +165,8 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__go_status = self.GoStatus.NO_TARGET
             return
-        assert(self.__current is not None)
-        self.__go(self.__current.get_left_child())
+        assert(self.__cursor is not None)
+        self.__go(self.__cursor.get_left_child())
 
     # переместить курсор к правому потомку текущего узла
     # предусловие: дерево не пустое
@@ -209,8 +176,8 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__go_status = self.GoStatus.NO_TARGET
             return
-        assert(self.__current is not None)
-        self.__go(self.__current.get_right_child())
+        assert(self.__cursor is not None)
+        self.__go(self.__cursor.get_right_child())
 
     class GoStatus(Enum):
         NIL = auto(),       # команда не выполнялась
@@ -228,7 +195,7 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__set_node_value_status = self.SetNodeValueStatus.EMPTY_TREE
             return
-        self.__current.set_value(value)
+        self.__cursor.set_value(value)
         self.__set_node_value_status = self.SetNodeValueStatus.OK
 
     class SetNodeValueStatus(Enum):
@@ -249,31 +216,31 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__delete_status = self.DeleteStatus.EMPTY_TREE
             return
-        assert(self.__current is not None)
-        if self.__current.get_right_child() is not None:
-            replacement = self.__current.get_right_child()
+        assert(self.__cursor is not None)
+        if self.__cursor.get_right_child() is not None:
+            replacement = self.__cursor.get_right_child()
             while True:
                 assert(replacement is not None)
                 if replacement.get_left_child() is None:
                     break
                 replacement = replacement.get_left_child()
             assert(replacement is not None)
-            self.__current.set_value(replacement.get_value())
-            stored_current = self.__current
-            self.__current = replacement
+            self.__cursor.set_value(replacement.get_value())
+            stored_current = self.__cursor
+            self.__cursor = replacement
             self.delete()
             assert(self.get_delete_status() == self.DeleteStatus.OK)
-            self.__current = stored_current
+            self.__cursor = stored_current
             self.__size += 1
         else:
-            parent = self.__current.get_parent()
+            parent = self.__cursor.get_parent()
             assert(parent is not None)
-            left = self.__current.get_left_child()
-            _replace_child(self.__current, left)
+            left = self.__cursor.get_left_child()
+            _replace_child(self.__cursor, left)
             if left is not None:
-                self.__current = left
+                self.__cursor = left
             else:
-                self.__current = parent
+                self.__cursor = parent
 
         self.__size -= 1
         self.__delete_status = self.DeleteStatus.OK
@@ -299,16 +266,16 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__rotate_status = self.RotateStatus.EMPTY_TREE
             return
-        assert(self.__current is not None)
-        if self.__current.get_left_child() is None:
+        assert(self.__cursor is not None)
+        if self.__cursor.get_left_child() is None:
             self.__rotate_status = self.RotateStatus.NO_PROPER_CHILD
             return
-        top = self.__current
+        top = self.__cursor
         assert(top is not None)
         left = top.get_left_child()
         assert(left is not None)
         right_of_left = left.get_right_child()
-        self.__current = left
+        self.__cursor = left
         _replace_child(top, left)
         left.set_right_child(top)
         top.set_parent(left)
@@ -327,16 +294,16 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__rotate_status = self.RotateStatus.EMPTY_TREE
             return
-        assert(self.__current is not None)
-        if self.__current.get_right_child() is None:
+        assert(self.__cursor is not None)
+        if self.__cursor.get_right_child() is None:
             self.__rotate_status = self.RotateStatus.NO_PROPER_CHILD
             return
-        top = self.__current
+        top = self.__cursor
         assert(top is not None)
         right = top.get_right_child()
         assert(right is not None)
         left_of_right = right.get_left_child()
-        self.__current = right
+        self.__cursor = right
         _replace_child(top, right)
         right.set_left_child(top)
         top.set_parent(right)
@@ -363,31 +330,33 @@ class BinaryTree:
     def get_size(self) -> int:
         return self.__size
 
+    # проверить установлен ли курсор на реальный узел
+    def is_on_node(self) -> bool:
+        return not isinstance(self.__cursor, self.__Vacancy)
+
     # проверить установлен ли курсор на корень дерева
-    def is_node_root(self) -> bool:
-        if self.get_size() == 0:
-            return False
-        return self.__current.get_parent() is self.__root_parent
+    def is_on_root(self) -> bool:
+        return self.__cursor.get_parent() is self.__root_parent
 
     # проверить установлен ли курсор на левого потомка
-    def is_node_left_child(self) -> bool:
+    def is_on_left_child(self) -> bool:
         if self.get_size() == 0:
             return False
-        if self.is_node_root():
+        if self.is_on_root():
             return False
-        parent = self.__current.get_parent()
+        parent = self.__cursor.get_parent()
         assert(parent is not None)
-        return parent.get_left_child() is self.__current
+        return parent.get_left_child() is self.__cursor
 
     # проверить установлен ли курсор на правого потомка
-    def is_node_right_child(self) -> bool:
+    def is_on_right_child(self) -> bool:
         if self.get_size() == 0:
             return False
-        if self.is_node_root():
+        if self.is_on_root():
             return False
-        parent = self.__current.get_parent()
+        parent = self.__cursor.get_parent()
         assert(parent is not None)
-        return parent.get_right_child() is self.__current
+        return parent.get_right_child() is self.__cursor
 
     # получить значение текущего узла
     # предусловие: дерево не пусто
@@ -395,9 +364,9 @@ class BinaryTree:
         if self.get_size() == 0:
             self.__get_node_value_status = self.GetNodeValueStatus.EMPTY_TREE
             return
-        assert(self.__current is not None)
+        assert(self.__cursor is not None)
         self.__get_node_value_status = self.GetNodeValueStatus.OK
-        return self.__current.get_value()
+        return self.__cursor.get_value()
 
     class GetNodeValueStatus(Enum):
         NIL = auto(),
@@ -414,10 +383,10 @@ class BinaryTree:
         if target is None or target is self.__root_parent:
             self.__go_status = self.GoStatus.NO_TARGET
             return
-        self.__current = target
+        self.__cursor = target
         self.__go_status = self.GoStatus.OK
 
-
+"""
 class _ColoredValue(NamedTuple):
     value: Any
     is_red: bool
@@ -546,7 +515,7 @@ class RedBlackTree:
             return
         if not self.__is_node_red():
             return
-        assert(not self.__tree.is_node_root())
+        assert(not self.__tree.is_on_root())
         if self.__is_uncle_red():
             self.__set_node_black()
             self.__go_brother()
@@ -562,7 +531,7 @@ class RedBlackTree:
         return self.__tree.get_node_value().is_red
 
     def __go_brother(self) -> None:
-        if self.__tree.is_node_left_child():
+        if self.__tree.is_on_left_child():
             self.__tree.go_parent()
             self.__tree.go_right_child()
             return
@@ -578,8 +547,8 @@ class RedBlackTree:
         self.__tree.set_node_value(_ColoredValue(cv.value, True))
 
     def __is_uncle_red(self) -> bool:
-        assert(not self.__tree.is_node_root())
-        if self.__tree.is_node_left_child():
+        assert(not self.__tree.is_on_root())
+        if self.__tree.is_on_left_child():
             self.__tree.go_parent()
             self.__tree.go_right_child()
             is_red = self.__is_node_red()
@@ -631,3 +600,4 @@ class RedBlackTree:
             leaf_black_depth[0] = black_depth
             return
         assert(black_depth == leaf_black_depth[0])
+"""
