@@ -64,18 +64,28 @@ class Test_BinaryTree(unittest.TestCase):
         count[0] += 1
         if pattern[1] != []:
             tree.go_left_child()
+            self.assertFalse(tree.is_node_root())
+            self.assertTrue(tree.is_node_left_child())
             self.check_subtree(tree, pattern[1], count)
             tree.go_parent()
         if pattern[2] != []:
             tree.go_right_child()
+            self.assertFalse(tree.is_node_root())
+            self.assertTrue(tree.is_node_right_child())
             self.check_subtree(tree, pattern[2], count)
             tree.go_parent()
 
     def check(self, tree: BinaryTree, pattern: list[Any]):
         if pattern == []:
             self.assertEqual(tree.get_size(), 0)
+            self.assertFalse(tree.is_node_root())
+            self.assertFalse(tree.is_node_left_child())
+            self.assertFalse(tree.is_node_right_child())
             return
         tree.go_root()
+        self.assertTrue(tree.is_node_root())
+        self.assertFalse(tree.is_node_left_child())
+        self.assertFalse(tree.is_node_right_child())
         count = [0]
         self.check_subtree(tree, pattern, count)
         self.assertEqual(tree.get_size(), count[0])
@@ -335,7 +345,7 @@ class Val(NamedTuple):
 
 class Test_RedBlackTree(unittest.TestCase):
 
-    def test_build(self):
+    def test_put_distinct(self):
         rbt = RedBlackTree()
         a = Val("a")
         a1 = Val("a")
@@ -358,6 +368,52 @@ class Test_RedBlackTree(unittest.TestCase):
         self.assertIs(rbt.get(Val("a")), a1)
         self.assertIs(rbt.get(Val("b")), b)
 
+    def test_put(self):
+        rbt = RedBlackTree()
+        rbt.put("d")
+        rbt.put("b")
+        rbt.put("f")
+        rbt.put("a")
+        rbt.put("c")
+        rbt.put("e")
+        rbt.put("g")
+        self.assertEqual(rbt.get_size(), 7)
+        self.assertTrue(rbt.has_value("a"))
+        self.assertTrue(rbt.has_value("b"))
+        self.assertTrue(rbt.has_value("c"))
+        self.assertTrue(rbt.has_value("d"))
+        self.assertTrue(rbt.has_value("e"))
+        self.assertTrue(rbt.has_value("f"))
+        self.assertTrue(rbt.has_value("g"))
+        self.assertEqual(rbt.get("a"), "a")
+        self.assertEqual(rbt.get("b"), "b")
+        self.assertEqual(rbt.get("c"), "c")
+        self.assertEqual(rbt.get("d"), "d")
+        self.assertEqual(rbt.get("e"), "e")
+        self.assertEqual(rbt.get("f"), "f")
+        self.assertEqual(rbt.get("g"), "g")
+
+    def test_get(self):
+        rbt = RedBlackTree()
+        self.assertEqual(rbt.get_get_status(), RedBlackTree.GetStatus.NIL)
+        rbt.get("a")
+        self.assertEqual(rbt.get_get_status(), RedBlackTree.GetStatus.NOT_FOUND)
+        rbt.put("a")
+        self.assertEqual(rbt.get("a"), "a")
+        self.assertEqual(rbt.get_get_status(), RedBlackTree.GetStatus.OK)
+
+    def test_delete(self):
+        rbt = RedBlackTree()
+        rbt.put("d")
+        rbt.put("b")
+        rbt.put("f")
+        rbt.put("a")
+        rbt.put("c")
+        rbt.put("e")
+        rbt.put("g")
+        self.assertEqual(rbt.get_size(), 7)
+        rbt.delete("a")
+        self.assertEqual(rbt.get_size(), 6)
 
 if __name__ == "__main__":
     unittest.main()

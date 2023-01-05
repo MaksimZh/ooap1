@@ -363,6 +363,32 @@ class BinaryTree:
     def get_size(self) -> int:
         return self.__size
 
+    # проверить установлен ли курсор на корень дерева
+    def is_node_root(self) -> bool:
+        if self.get_size() == 0:
+            return False
+        return self.__current.get_parent() is self.__root_parent
+
+    # проверить установлен ли курсор на левого потомка
+    def is_node_left_child(self) -> bool:
+        if self.get_size() == 0:
+            return False
+        if self.is_node_root():
+            return False
+        parent = self.__current.get_parent()
+        assert(parent is not None)
+        return parent.get_left_child() is self.__current
+
+    # проверить установлен ли курсор на правого потомка
+    def is_node_right_child(self) -> bool:
+        if self.get_size() == 0:
+            return False
+        if self.is_node_root():
+            return False
+        parent = self.__current.get_parent()
+        assert(parent is not None)
+        return parent.get_right_child() is self.__current
+
     # получить значение текущего узла
     # предусловие: дерево не пусто
     def get_node_value(self) -> Any:
@@ -410,6 +436,7 @@ class RedBlackTree:
         self.__size = 0
         self.__tree = BinaryTree()
         self.__tree.add_root(_leaf)
+        self.__get_status = self.GetStatus.NIL
 
 
     # КОМАНДЫ
@@ -427,6 +454,8 @@ class RedBlackTree:
             self.__size += 1
         else:
             self.__tree.set_node_value(_ColoredValue(value, cv.is_red))
+        if __debug__:
+            self.__check_tree()
 
 
     # удалить узел с заданным значением
@@ -434,7 +463,15 @@ class RedBlackTree:
     # постусловие: узел со значением равным заданному удалён
     # постусловие: дерево соответствует требованиям красно-чёрного дерева
     def delete(self, value: Any) -> None:
-        pass
+        self.__tree.go_root()
+        self.__find(value)
+        if self.__is_node_red():
+            self.__tree.delete()
+            self.__size -= 1
+            return
+        self.__size -= 1
+        if __debug__:
+            self.__check_tree()
 
     class DeleteStatus(Enum):
         NIL = auto(),       # команда не выполнялась 
@@ -464,6 +501,10 @@ class RedBlackTree:
     def get(self, value: Any) -> Any:
         self.__tree.go_root()
         self.__find(value)
+        if self.__tree.get_node_value() is _leaf:
+            self.__get_status = self.GetStatus.NOT_FOUND
+            return None
+        self.__get_status = self.GetStatus.OK
         return self.__tree.get_node_value().value
 
     class GetStatus(Enum):
@@ -499,4 +540,94 @@ class RedBlackTree:
         self.__rebalance_red()
 
     def __rebalance_red(self) -> None:
-        pass
+        self.__tree.go_parent()
+        if self.__tree.get_go_status() == BinaryTree.GoStatus.NO_TARGET:
+            self.__set_node_black()
+            return
+        if not self.__is_node_red():
+            return
+        assert(not self.__tree.is_node_root())
+        if self.__is_uncle_red():
+            self.__set_node_black()
+            self.__go_brother()
+            self.__set_node_black()
+            self.__tree.go_parent()
+            self.__set_node_red()
+            self.__rebalance_red()
+            return
+        self.__tree.go_parent()
+        self.__tree.rotate_right()
+
+    def __is_node_red(self) -> bool:
+        return self.__tree.get_node_value().is_red
+
+    def __go_brother(self) -> None:
+        if self.__tree.is_node_left_child():
+            self.__tree.go_parent()
+            self.__tree.go_right_child()
+            return
+        self.__tree.go_parent()
+        self.__tree.go_left_child()
+
+    def __set_node_black(self) -> None:
+        cv = self.__tree.get_node_value()
+        self.__tree.set_node_value(_ColoredValue(cv.value, False))
+
+    def __set_node_red(self) -> None:
+        cv = self.__tree.get_node_value()
+        self.__tree.set_node_value(_ColoredValue(cv.value, True))
+
+    def __is_uncle_red(self) -> bool:
+        assert(not self.__tree.is_node_root())
+        if self.__tree.is_node_left_child():
+            self.__tree.go_parent()
+            self.__tree.go_right_child()
+            is_red = self.__is_node_red()
+            self.__tree.go_parent()
+            self.__tree.go_left_child()
+            return is_red
+        self.__tree.go_parent()
+        self.__tree.go_left_child()
+        is_red = self.__is_node_red()
+        self.__tree.go_parent()
+        self.__tree.go_right_child()
+        return is_red
+
+
+    def __check_tree(self) -> None:
+        self.__tree.go_root()
+        leaf_black_depth: list[Optional[int]] = [None]
+        self.__check_black(0, leaf_black_depth)
+
+    def __check_black(self, black_depth: int, leaf_black_depth: list[Optional[int]]) -> None:
+        assert(not self.__tree.get_node_value().is_red)
+        if self.__tree.get_node_value() is _leaf:
+            self.__check_leaf(black_depth + 1, leaf_black_depth)
+            return
+        self.__tree.go_left_child()
+        self.__check_node(black_depth + 1, leaf_black_depth)
+        self.__tree.go_parent()
+        self.__tree.go_right_child()
+        self.__check_node(black_depth + 1, leaf_black_depth)
+        self.__tree.go_parent()
+    
+    def __check_red(self, black_depth: int, leaf_black_depth: list[Optional[int]]) -> None:
+        assert(self.__tree.get_node_value().is_red)
+        self.__tree.go_left_child()
+        self.__check_black(black_depth, leaf_black_depth)
+        self.__tree.go_parent()
+        self.__tree.go_right_child()
+        self.__check_black(black_depth, leaf_black_depth)
+        self.__tree.go_parent()
+
+    def __check_node(self, black_depth: int, leaf_black_depth: list[Optional[int]]) -> None:
+        if self.__tree.get_node_value().is_red:
+            self.__check_red(black_depth, leaf_black_depth)
+            return
+        self.__check_black(black_depth, leaf_black_depth)
+
+    def __check_leaf(self, black_depth: int, leaf_black_depth: list[Optional[int]]) -> None:
+        if leaf_black_depth[0] is None:
+            leaf_black_depth[0] = black_depth
+            return
+        assert(black_depth == leaf_black_depth[0])
