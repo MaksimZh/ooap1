@@ -292,73 +292,91 @@ class Test_BinaryTree(unittest.TestCase):
         self.check(bt, [])
 
     
-    """
-    def test_rotate_right_branch(self):
+    def test_rotate_small(self):
         bt = BinaryTree()
-        bt.put("a")
-        bt.go_left_child()
-        bt.put("b")
-        bt.go_left_child()
-        bt.put("d")
-        bt.go_parent()
-        bt.go_right_child()
-        bt.put("e")
-        bt.go_parent()
-        bt.go_parent()
-        bt.go_right_child()
-        bt.put("c")
-        bt.go_left_child()
-        bt.put("f")
-        bt.go_parent()
-        bt.go_right_child()
-        bt.put("g")
+        bt.rotate_right()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NOT_NODE)
+        bt.rotate_left()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NOT_NODE)
+        
+        self.make(bt, ["a"])
+        bt.rotate_right()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NO_PROPER_CHILD)
+        bt.rotate_left()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NO_PROPER_CHILD)
+        
+    def test_rotate_medium(self):
+        bt = BinaryTree()
+        self.make(bt, ["a", ["b", ["d"], []], ["c", [], ["g"]]])
 
-        bt.go_root()
+        bt.to_root()
+        bt.go_left_child()
+        bt.rotate_left()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NO_PROPER_CHILD)
+        bt.rotate_right()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
+        self.check(bt, ["a", ["d", [], ["b"]], ["c", [], ["g"]]])
+
+        bt.to_root()
+        bt.go_right_child()
+        bt.rotate_right()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NO_PROPER_CHILD)
+        bt.rotate_left()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
+        self.check(bt, ["a", ["d", [], ["b"]], ["g", ["c"], []]])
+
+
+    def test_rotate_big(self):
+        bt = BinaryTree()
+        self.make(bt, ["a", ["b", ["d"], ["e"]], ["c", ["f"], ["g"]]])
+
+        bt.to_root()
         bt.go_left_child()
         bt.rotate_right()
         self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
         self.assertEqual(bt.get_node_value(), "d")
-        self.check(bt, ["a", ["d", ["f", [], []], ["b", ["g", [], []], ["e", [], []]]], ["c", [], []]])
-
-    def test_rotate_left_root(self):
-        bt = BinaryTree()
-        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NIL)
-        bt.rotate_left()
-        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.EMPTY_TREE)
-        bt.add_root("a")
-        bt.add_left_child("b")
-        bt.rotate_left()
-        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.NO_PROPER_CHILD)
-        bt.add_right_child("c")
-        bt.go_right_child()
-        bt.add_left_child("d")
-        bt.add_right_child("e")
-        self.check(bt, ["a", ["b", [], []], ["c", ["d", [], []], ["e", [], []]]])
-        bt.go_root()
+        self.check(bt, ["a", ["d", [], ["b", [], ["e"]]], ["c", ["f"], ["g"]]])
+        
+        bt.to_root()
+        bt.go_left_child()
         bt.rotate_left()
         self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
-        self.assertEqual(bt.get_node_value(), "c")
-        self.check(bt, ["c", ["a", ["b", [], []], ["d", [], []]], ["e", [], []]])
-
-    def test_rotate_left_branch(self):
-        bt = BinaryTree()
-        bt.add_root("a")
-        bt.add_left_child("b")
-        bt.add_right_child("c")
-        bt.go_right_child()
-        bt.add_left_child("d")
-        bt.add_right_child("e")
-        bt.go_right_child()
-        bt.add_left_child("f")
-        bt.add_right_child("g")
-        self.check(bt, ["a", ["b", [], []], ["c", ["d", [], []], ["e", ["f", [], []], ["g", [], []]]]])
-        bt.go_root()
-        bt.go_right_child()
+        self.assertEqual(bt.get_node_value(), "b")
+        self.check(bt, ["a", ["b", ["d"], ["e"]], ["c", ["f"], ["g"]]])
+        
+        bt.to_root()
+        bt.go_left_child()
         bt.rotate_left()
         self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
         self.assertEqual(bt.get_node_value(), "e")
-        self.check(bt, ["a", ["b", [], []], ["e", ["c", ["d", [], []], ["f", [], []]], ["g", [], []]]])
-    """
+        self.check(bt, ["a", ["e", ["b", ["d"], []], []], ["c", ["f"], ["g"]]])
+
+        bt.to_root()
+        bt.go_left_child()
+        bt.rotate_right()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
+        self.assertEqual(bt.get_node_value(), "b")
+        self.check(bt, ["a", ["b", ["d"], ["e"]], ["c", ["f"], ["g"]]])
+
+        bt.to_root()
+        bt.rotate_right()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
+        self.assertEqual(bt.get_node_value(), "b")
+        self.check(bt, ["b", ["d"], ["a", ["e"], ["c", ["f"], ["g"]]]])
+
+        bt.to_root()
+        bt.rotate_left()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
+        self.assertEqual(bt.get_node_value(), "a")
+        self.check(bt, ["a", ["b", ["d"], ["e"]], ["c", ["f"], ["g"]]])
+
+        bt.to_root()
+        bt.rotate_left()
+        self.assertEqual(bt.get_rotate_status(), bt.RotateStatus.OK)
+        self.assertEqual(bt.get_node_value(), "c")
+        self.check(bt, ["c", ["a", ["b", ["d"], ["e"]], ["f"]], ["g"]])
+
+
 """
 class Val(NamedTuple):
     a: str

@@ -198,17 +198,16 @@ class BinaryTree:
 
 
     # повернуть дерево вправо на текущем узле
-    # предусловие: дерево не пусто
+    # предусловие: курсор не на вакансии
     # предусловие: у текущего узла есть левый потомок
     # постусловие: левый потомок занял место текущего узла
     #              текущий узел стал правым потомком своего левого потомка
     #              правый потомок левого потомка текущего узла стал левым потомком текущего узла
     def rotate_right(self) -> None:
-        if self.get_size() == 0:
-            self.__rotate_status = self.RotateStatus.EMPTY_TREE
+        if not self.is_on_node():
+            self.__rotate_status = self.RotateStatus.NOT_NODE
             return
-        assert(self.__cursor is not None)
-        if self.__cursor.get_left_child() is None:
+        if isinstance(self.__cursor.get_left_child(), self.__Vacancy):
             self.__rotate_status = self.RotateStatus.NO_PROPER_CHILD
             return
         top = self.__cursor
@@ -226,17 +225,16 @@ class BinaryTree:
         self.__rotate_status = self.RotateStatus.OK
 
     # повернуть дерево влево на текущем узле
-    # предусловие: дерево не пусто
+    # предусловие: курсор не на вакансии
     # предусловие: у текущего узла есть правый потомок
     # постусловие: правый потомок занял место текущего узла
     #              текущий узел стал левым потомком своего правого потомка
     #              левый потомок правого потомка текущего узла стал правым потомком текущего узла
     def rotate_left(self) -> None:
-        if self.get_size() == 0:
-            self.__rotate_status = self.RotateStatus.EMPTY_TREE
+        if not self.is_on_node():
+            self.__rotate_status = self.RotateStatus.NOT_NODE
             return
-        assert(self.__cursor is not None)
-        if self.__cursor.get_right_child() is None:
+        if isinstance(self.__cursor.get_right_child(), self.__Vacancy):
             self.__rotate_status = self.RotateStatus.NO_PROPER_CHILD
             return
         top = self.__cursor
@@ -256,7 +254,7 @@ class BinaryTree:
     class RotateStatus(Enum):
         NIL = auto(),             # команда не выполнялась
         OK = auto(),              # успех
-        EMPTY_TREE = auto(),      # дерево пусто
+        NOT_NODE = auto(),        # курсор на вакансии
         NO_PROPER_CHILD = auto(), # нет потомка чтобы заменить текущий узел
 
     __rotate_status: RotateStatus
