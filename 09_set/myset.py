@@ -3,6 +3,7 @@ from hash_table import HashTable, Buffer
 class MySet(HashTable):
     
     # КОНСТРУКТОР
+    # постусловие: создано пустое множество
     def __init__(self) -> None:
         super().__init__(17, 17, 100)
 
