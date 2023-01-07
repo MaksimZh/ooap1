@@ -32,7 +32,7 @@ class Test_MySet(unittest.TestCase):
         self.assertEqual(s.get_put_status(), MySet.PutStatus.ALREADY_CONTAINS)
         self.check(s, {1, 2})
 
-    def test_remove(self):
+    def test_delete(self):
         s = MySet()
         self.assertEqual(s.get_delete_status(), MySet.DeleteStatus.NIL)
         s.delete(1)
@@ -228,6 +228,13 @@ class Test_MySet(unittest.TestCase):
         self.assertFalse(self.make({1, 2}).is_subset(self.make({1, 2, 3})))
         self.assertFalse(self.make({1, 2}).is_subset(self.make({3})))
 
+    def test_put_delete_large(self):
+        src = set(range(100000))
+        s = self.make(src)
+        self.check(s, src)
+        for v in src:
+            s.delete(v)
+        self.check(s, set())
 
 if __name__ == "__main__":
     unittest.main()
