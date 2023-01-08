@@ -1,6 +1,6 @@
 import unittest
 
-from bloom import BitArray, BloomFilter
+from bloom import BitArray, Hash, BloomFilter
 
 
 class Test_BitArray(unittest.TestCase):
@@ -88,11 +88,42 @@ class Test_BitArray(unittest.TestCase):
         self.check(a, "10000100" + "0" * 56 + "0000101")
 
 
+class Test_Hash(unittest.TestCase):
+
+    def test_10(self):
+        h = Hash(17, 10)
+        s = set[int]()
+        for i in range(10000):
+            v = h.eval(str(i))
+            self.assertGreaterEqual(v, 0)
+            self.assertLessEqual(v, 9)
+            s.add(v)
+        self.assertEqual(len(s), 10)
+
+    def test_100(self):
+        h = Hash(307, 100)
+        s = set[int]()
+        for i in range(100000):
+            v = h.eval(str(i))
+            self.assertGreaterEqual(v, 0)
+            self.assertLessEqual(v, 99)
+            s.add(v)
+        self.assertEqual(len(s), 100)
+
+
 class Test_MySet(unittest.TestCase):
     
     def test(self):
-        bf = BloomFilter(10, 0.1)
-        bf = bf
+        bf = BloomFilter(100, 0.2)
+        for i in range(100):
+            bf.add(str(i))
+        for i in range(100):
+            self.assertTrue(bf.has(str(i)))
+        count = 0
+        for i in range(10000):
+            if bf.has(str(i)):
+                count += 1
+        self.assertLess(count, 3000)
 
 
 if __name__ == "__main__":

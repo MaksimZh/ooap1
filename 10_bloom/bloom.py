@@ -82,10 +82,68 @@ class BitArray:
         return self.__size
 
 
-class BloomFilter:
+class Hash:
+
+    __p: int
+    __cap: int
     
+    # КОНСТРУКТОР
+    # постусловие: создан генератор хэшей с заданными параметрами
+    def __init__(self, prime: int, cap: int) -> None:
+        assert(prime != cap)
+        self.__p = prime
+        self.__cap = cap
+
+    
+    # ЗАПРОСЫ
+    
+    # вычислить хэш заданной строки
+    def eval(self, value: str) -> int:
+        s = 0
+        for c in value:
+            code = ord(c)
+            s = (s * self.__p + code) % self.__cap
+        return s
+
+
+class BloomFilter:
+
+    __hashes: list[Hash]
+    __bits: BitArray
+    
+
+    # КОНСТРУКТОР
+    # постусловие: создан фильтр Блюма рассчитанный на определённое
+    #              количество записей с заданной вероятностью ложного срабатывания
+    #              в любом случае количество бит не более 1024,
+    #              а количество хэш-функций не более 8
     def __init__(self, count: int, err_prob: float) -> None:
         alpha = 0.6931
-        size = count * log(err_prob) / log(alpha)
-        k = alpha * size / count
-        k = k
+        size = min(int(count * log(err_prob) / log(alpha)), 1024)
+        num_hashes = min(int(alpha * size / count), 8)
+        primes = [7, 223, 13, 199, 19, 193, 29, 181]
+        self.__hashes = []
+        for i in range(num_hashes):
+            self.__hashes.append(Hash(primes[i], size))
+        self.__bits = BitArray(size)
+
+
+    # КОМАНДЫ
+
+    # добавить значение в фильтр
+    # постусловие: заданное значение добавлено в фильтр
+    def add(self, value: str) -> None:
+        for h in self.__hashes:
+            i = h.eval(value)
+            self.__bits.set_on(i)
+
+
+    # ЗАПРОСЫ
+    
+    # проверить содержит ли фильтр значение
+    def has(self, value: str) -> bool:
+        for h in self.__hashes:
+            i = h.eval(value)
+            if not self.__bits.get(i):
+                return False
+        return True
