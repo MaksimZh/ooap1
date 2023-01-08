@@ -114,7 +114,7 @@ class Test_Hash(unittest.TestCase):
 class Test_MySet(unittest.TestCase):
     
     def test(self):
-        bf = BloomFilter(100, 0.2)
+        bf = BloomFilter(1000, 0.2)
         for i in range(100):
             bf.add(str(i))
         for i in range(100):
@@ -123,7 +123,7 @@ class Test_MySet(unittest.TestCase):
         for i in range(10000):
             if bf.has(str(i)):
                 count += 1
-        self.assertLess(count, 3000)
+        self.assertLess(count, 300)
 
 
 if __name__ == "__main__":

@@ -115,11 +115,11 @@ class BloomFilter:
     # КОНСТРУКТОР
     # постусловие: создан фильтр Блюма рассчитанный на определённое
     #              количество записей с заданной вероятностью ложного срабатывания
-    #              в любом случае количество бит не более 1024,
+    #              в любом случае количество бит не более 2^16,
     #              а количество хэш-функций не более 8
     def __init__(self, count: int, err_prob: float) -> None:
         alpha = 0.6931
-        size = min(int(count * log(err_prob) / log(alpha)), 1024)
+        size = min(int(count * log(err_prob) / log(alpha)), 2**16)
         num_hashes = min(int(alpha * size / count), 8)
         primes = [7, 223, 13, 199, 19, 193, 29, 181]
         self.__hashes = []
